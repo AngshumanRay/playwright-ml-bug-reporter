@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>ShopEase - Orders</title><link rel="stylesheet" href="/styles.css"><script src="/app.js"></script></head>
+<body>
+<main>
+  <h1>Order History</h1>
+  <div class="card">
+    <table>
+      <thead><tr><th>Order</th><th>Total</th><th>Status</th></tr></thead>
+      <tbody id="orders-body"></tbody>
+    </table>
+  </div>
+</main>
+<script>
+  (async () => {
+    const response = await (await fetch('/api/orders')).json();
+    // SEEDED DEFECT (Critical): the API now returns { data }, so response.orders is undefined
+    document.getElementById('orders-body').innerHTML = response.orders
+      .map((o) => `<tr data-testid="order-row"><td>${o.id}</td><td>${money(o.total)}</td><td>${o.status}</td></tr>`).join('');
+  })();
+</script>
+</body>
+</html>

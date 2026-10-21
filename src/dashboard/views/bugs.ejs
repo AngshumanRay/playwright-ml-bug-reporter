@@ -1,0 +1,59 @@
+<%- include('partials/header') %>
+<h1>Bugs</h1>
+<p class="subtitle">Every failure logged by the Playwright reporter. Filter, search and move bugs through Open → In Progress → Resolved.</p>
+
+<form class="filters card" method="get" action="/bugs">
+  <label>Search<input type="search" name="q" value="<%= filter.q %>" placeholder="Bug ID, test name or error text"></label>
+  <label>Severity
+    <select name="severity"><option value="">All</option>
+      <% SEVERITIES.forEach(s => { %><option <%= filter.severity === s ? 'selected' : '' %>><%= s %></option><% }) %>
+    </select></label>
+  <label>Status
+    <select name="status"><option value="">All</option>
+      <% BUG_STATUSES.forEach(s => { %><option <%= filter.status === s ? 'selected' : '' %>><%= s %></option><% }) %>
+    </select></label>
+  <label>Module
+    <select name="module"><option value="">All</option>
+      <% modules.forEach(m => { %><option <%= filter.module === m ? 'selected' : '' %>><%= m %></option><% }) %>
+    </select></label>
+  <button type="submit">Apply</button>
+  <a class="btn ghost" href="/bugs">Clear</a>
+</form>
+
+<div class="card table-wrap">
+  <% if (!bugs.length) { %>
+    <p class="empty">No bugs match these filters.</p>
+  <% } else { %>
+  <p class="muted" style="margin-top:0"><%= bugs.length %> bug(s)</p>
+  <table>
+    <tr><th>ID</th><th>Test / error</th><th>Module</th><th>Severity</th><th>Status</th><th>Detected</th><th class="num">Seen</th><th>Action</th></tr>
+    <% bugs.forEach(b => { %>
+    <tr>
+      <td><a href="/bugs/<%= b.id %>">#<%= b.id %></a></td>
+      <td>
+        <a href="/bugs/<%= b.id %>"><%= b.title %></a>
+        <% if (flakyTests.has(b.test_key)) { %> <span class="pill flaky-tag">Flaky</span><% } %>
+        <% if (b.file === 'simulated-history') { %> <span class="pill">Simulated</span><% } %>
+        <div class="muted" style="font-size:13px"><%= b.error_message.split('\n')[0].replace(/^Error:\s*/, '') %></div>
+      </td>
+      <td><%= b.module %></td>
+      <td><%- include('partials/sev', { severity: b.severity }) %></td>
+      <td><%- include('partials/status', { status: b.status }) %></td>
+      <td style="white-space:nowrap"><%= b.created_at %></td>
+      <td class="num"><%= b.occurrences %>×</td>
+      <td>
+        <% const next = b.status === 'Open' ? 'In Progress' : b.status === 'In Progress' ? 'Resolved' : null; %>
+        <% if (next) { %>
+        <form method="post" action="/bugs/<%= b.id %>/status">
+          <input type="hidden" name="status" value="<%= next %>">
+          <input type="hidden" name="redirect" value="/bugs?<%= new URLSearchParams(filter).toString() %>">
+          <button class="small ghost" type="submit">→ <%= next %></button>
+        </form>
+        <% } else { %><span class="muted">-</span><% } %>
+      </td>
+    </tr>
+    <% }) %>
+  </table>
+  <% } %>
+</div>
+<%- include('partials/footer') %>

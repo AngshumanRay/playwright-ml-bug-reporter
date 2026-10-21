@@ -1,0 +1,73 @@
+<%- include('partials/header') %>
+<p><a href="/bugs">← All bugs</a></p>
+<h1>Bug #<%= bug.id %>: <%= bug.title %></h1>
+<p class="subtitle"><%- include('partials/sev', { severity: bug.severity }) %> <%- include('partials/status', { status: bug.status }) %>
+  <% if (stability && stability.verdict === 'Flaky') { %><span class="pill flaky-tag">Flaky test</span><% } %>
+  <% if (bug.file === 'simulated-history') { %><span class="pill">Simulated history (npm run seed:history)</span><% } %></p>
+
+<div class="grid detail-grid">
+  <div>
+    <div class="card">
+      <h2 class="section-title" style="margin-top:0">Error message</h2>
+      <pre><%= bug.error_message %></pre>
+      <% if (bug.error_stack) { %>
+      <details><summary>Stack trace</summary><pre><%= bug.error_stack %></pre></details>
+      <% } %>
+      <h2 class="section-title">Screenshot at failure</h2>
+      <% if (bug.screenshot_path) { %>
+        <a href="/screenshots/<%= bug.screenshot_path %>" target="_blank"><img class="screenshot" src="/screenshots/<%= bug.screenshot_path %>" alt="Screenshot of the page when the test failed"></a>
+      <% } else { %><p class="muted">No screenshot captured.</p><% } %>
+    </div>
+  </div>
+
+  <div class="grid" style="align-content:start">
+    <div class="card">
+      <h2 class="section-title" style="margin-top:0">Update status</h2>
+      <form method="post" action="/bugs/<%= bug.id %>/status" style="display:flex;gap:8px">
+        <select name="status" aria-label="Bug status">
+          <% BUG_STATUSES.forEach(s => { %><option <%= bug.status === s ? 'selected' : '' %>><%= s %></option><% }) %>
+        </select>
+        <button type="submit">Save</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2 class="section-title" style="margin-top:0">Details</h2>
+      <dl>
+        <dt>Module</dt><dd><%= bug.module %></dd>
+        <dt>Test</dt><dd><%= bug.test_key %></dd>
+        <dt>File</dt><dd><%= bug.file %></dd>
+        <dt>Browser</dt><dd><%= bug.browser %></dd>
+        <dt>First detected</dt><dd><%= bug.created_at %> (run #<%= bug.first_run_id %>)</dd>
+        <dt>Last seen</dt><dd><%= bug.last_seen_at %> (run #<%= bug.last_run_id %>)</dd>
+        <dt>Occurrences</dt><dd><%= bug.occurrences %></dd>
+        <dt>Email alert</dt><dd><%= bug.severity !== 'Critical' ? 'Not required' : bug.alert_sent ? 'Sent' : 'Preview saved (alerts disabled)' %></dd>
+      </dl>
+    </div>
+
+    <div class="card">
+      <h2 class="section-title" style="margin-top:0">ML severity prediction</h2>
+      <p style="margin:0 0 6px">Predicted <b><%= bug.severity %></b> with <b><%= (bug.confidence * 100).toFixed(1) %>%</b> confidence</p>
+      <div class="bar sev-<%= bug.severity %>"><div style="width: <%= (bug.confidence * 100).toFixed(1) %>%"></div></div>
+    </div>
+
+    <% if (stability) { %>
+    <div class="card">
+      <h2 class="section-title" style="margin-top:0">Test stability</h2>
+      <p style="margin:0 0 6px"><%= stability.verdict %> - failed <%= stability.failed %> of last <%= stability.runs %> runs</p>
+      <div class="history"><% stability.history.split('').forEach(c => { %><span class="<%= c %>"><%= c %></span><% }) %></div>
+      <p class="muted" style="font-size:12px;margin:4px 0 0">P = passed, F = failed (oldest → newest)</p>
+    </div>
+    <% } %>
+
+    <div class="card">
+      <h2 class="section-title" style="margin-top:0">Status history</h2>
+      <table>
+        <% history.forEach(h => { %>
+        <tr><td style="white-space:nowrap"><%= h.changed_at %></td><td><%= h.old_status ? h.old_status + ' → ' : 'Created as ' %><b><%= h.new_status %></b></td></tr>
+        <% }) %>
+      </table>
+    </div>
+  </div>
+</div>
+<%- include('partials/footer') %>

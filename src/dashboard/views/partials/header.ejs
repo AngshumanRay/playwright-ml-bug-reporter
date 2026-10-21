@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><%= title %> · Bug Dashboard</title>
+  <link rel="stylesheet" href="/static/dashboard.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">Automated Bug Reporting<small>Playwright + ML severity classification</small></div>
+  <nav>
+    <% [['/', 'Overview'], ['/bugs', 'Bugs'], ['/flaky', 'Flaky Tests'], ['/runs', 'Test Runs']].forEach(([href, label]) => { %>
+      <a href="<%= href %>" class="<%= (href === '/' ? currentPath === '/' : currentPath.startsWith(href)) ? 'active' : '' %>"><%= label %></a>
+    <% }) %>
+  </nav>
+</header>
+<main>

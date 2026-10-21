@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>ShopEase - Cart</title><link rel="stylesheet" href="/styles.css"><script src="/app.js"></script></head>
+<body>
+<main>
+  <h1>Your Cart</h1>
+  <div class="card">
+    <table>
+      <thead><tr><th>Product</th><th>Price</th><th>Qty</th><th></th></tr></thead>
+      <tbody id="cart-body"></tbody>
+    </table>
+    <p id="empty-msg"></p>
+    <h3>Total: <span data-testid="cart-total"></span></h3>
+    <a href="/checkout.html"><button>Proceed to Checkout</button></a>
+  </div>
+</main>
+<script>
+  function render() {
+    const items = Cart.items();
+    document.getElementById('cart-body').innerHTML = items.map((i) => `
+      <tr data-testid="cart-row">
+        <td>${i.name}</td><td>${money(i.price)}</td>
+        <td><input type="number" min="1" value="${i.qty}" data-qty="${i.id}" aria-label="Quantity of ${i.name}" style="width:70px"></td>
+        <td><button class="secondary" data-remove="${i.id}">Remove</button></td>
+      </tr>`).join('');
+    document.getElementById('empty-msg').textContent = items.length ? '' : 'Your cart is empty';
+    // SEEDED DEFECT (Major): parseInt drops the cents of each price
+    const total = items.reduce((sum, i) => sum + parseInt(i.price) * i.qty, 0);
+    document.querySelector('[data-testid="cart-total"]').textContent = money(total);
+  }
+  document.getElementById('cart-body').addEventListener('click', (e) => {
+    const id = Number(e.target.dataset.remove);
+    if (id) { Cart.save(Cart.items().filter((i) => i.id !== id)); render(); }
+  });
+  document.getElementById('cart-body').addEventListener('change', (e) => {
+    const id = Number(e.target.dataset.qty);
+    if (!id) return;
+    const items = Cart.items();
+    items.find((i) => i.id === id).qty = Math.max(1, Number(e.target.value));
+    Cart.save(items); render();
+  });
+  render();
+</script>
+</body>
+</html>

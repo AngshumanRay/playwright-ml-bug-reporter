@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>ShopEase - Profile</title><link rel="stylesheet" href="/styles.css"><script src="/app.js"></script></head>
+<body>
+<main style="max-width:520px">
+  <h1>My Profile</h1>
+  <div class="card">
+    <p>Signed in as <b data-testid="profile-username"></b></p>
+    <form id="profile-form">
+      <label for="display-name">Display Name</label><input id="display-name">
+      <label for="address">Adress</label><input id="address">
+      <!-- SEEDED DEFECT (Minor): wrong button colour, should be the brand blue rgb(37, 99, 235) -->
+      <button type="submit" id="save-profile" style="background: rgb(128, 128, 128)">Save Profile</button>
+    </form>
+    <div id="profile-message" class="success" role="status"></div>
+  </div>
+</main>
+<script>
+  document.querySelector('[data-testid="profile-username"]').textContent = localStorage.getItem('user') || 'guest';
+  document.getElementById('profile-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const res = await fetch('/api/profile', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: document.getElementById('display-name').value, address: document.getElementById('address').value }) });
+    if (res.ok) document.getElementById('profile-message').textContent = 'Profile saved successfully';
+  });
+</script>
+</body>
+</html>

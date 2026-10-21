@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>ShopEase - Checkout</title><link rel="stylesheet" href="/styles.css"><script src="/app.js"></script></head>
+<body>
+<main style="max-width:520px">
+  <h1>Checkout</h1>
+  <div class="card">
+    <form id="checkout-form" novalidate>
+      <label for="fullname">Full Name</label><input id="fullname">
+      <label for="street">Street Address</label><input id="street">
+      <label for="zip">Zip Code</label><input id="zip">
+      <label for="card">Card Number</label><input id="card">
+      <button type="submit">Place Order</button>
+    </form>
+    <div id="checkout-message" role="status"></div>
+  </div>
+</main>
+<script>
+  document.getElementById('checkout-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const msg = document.getElementById('checkout-message');
+    const missing = [['fullname', 'Full name'], ['street', 'Street address'], ['zip', 'Zip code'], ['card', 'Card number']]
+      .find(([id]) => !document.getElementById(id).value.trim());
+    if (missing) { msg.className = 'error'; msg.textContent = missing[1] + ' is required'; return; }
+    const res = await fetch('/api/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: Cart.items() }) });
+    const data = await res.json();
+    if (res.ok) { msg.className = 'success'; msg.textContent = 'Order confirmed! Thank you for shopping.'; Cart.save([]); }
+    else { msg.className = 'error'; msg.textContent = data.error; }
+  });
+</script>
+</body>
+</html>

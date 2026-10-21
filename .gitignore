@@ -1,0 +1,10 @@
+node_modules/
+.env
+data/*.db*
+reports/screenshots/*.png
+reports/alerts/*.html
+test-results/
+playwright-report/
+reports/playwright-html/
+reports/bug-report.html
+.DS_Store

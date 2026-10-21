@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>ShopEase - Login</title><link rel="stylesheet" href="/styles.css"><script src="/app.js"></script></head>
+<body data-no-header="true">
+<main style="max-width:420px">
+  <div class="card">
+    <h1>Sign in to ShopEase</h1>
+    <form id="login-form">
+      <label for="username">Username</label>
+      <input id="username" name="username" autocomplete="off">
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password">
+      <button type="submit">Sign In</button>
+    </form>
+    <div id="login-error" class="error" role="alert"></div>
+    <p style="color:#64748b;font-size:14px">Demo user: <b>student</b> / <b>Password@123</b></p>
+  </div>
+</main>
+<script>
+  document.getElementById('login-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
+    const res = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) });
+    const data = await res.json();
+    if (res.ok) { localStorage.setItem('user', data.username); location.href = '/products.html'; }
+    else document.getElementById('login-error').textContent = data.error;
+  });
+</script>
+</body>
+</html>
