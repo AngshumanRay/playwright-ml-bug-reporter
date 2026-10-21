@@ -33,6 +33,19 @@ function renderHeader() {
 
 const money = (n) => '$' + Number(n).toFixed(2);
 
+// SEEDED BROKEN LINKS: "Help Center" returns HTTP 500 and "Terms and Conditions" does not exist (404)
+function renderFooter() {
+  document.body.insertAdjacentHTML('beforeend', `
+    <footer class="site-footer">
+      <a href="/about.html">About Us</a>
+      <a href="/shipping-policy.html">Shipping Policy</a>
+      <a href="/help">Help Center</a>
+      <a href="/terms.html">Terms and Conditions</a>
+      <a href="mailto:support@shopease.example">Contact</a>
+    </footer>`);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   if (!document.body.dataset.noHeader) renderHeader();
+  renderFooter();
 });

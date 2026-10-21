@@ -159,6 +159,33 @@ Two tests in the demo are **flaky on purpose**. The cart and profile APIs wait a
 
 ---
 
+## Part C2: Broken link checker (additional feature)
+
+A website can look fine while some of its links lead to "404 Not Found" or crash with an error. Clicking every link by hand on every page is not practical, so `tests/links.spec.ts` does it automatically. It uses `src/links/linkCrawler.ts`.
+
+1. **Crawl.** It starts at the home page, opens it in a real browser, and collects every `<a href>` link. Every link to another page of the **same website** is added to a queue and opened the same way, until no new pages are found (or `LINK_CHECK_MAX_PAGES` is reached). A real browser is used because many sites add links with JavaScript; ShopEase builds its menu and footer that way.
+2. **Check.** Every unique link is requested and its HTTP status recorded: HEAD first, then GET, because some servers refuse HEAD. Links to other websites are checked but not crawled.
+3. **Report.** A link is broken if it answers 4xx/5xx or does not answer at all. For each broken link the test makes a separate *soft assertion*, which records the failure and continues. Because of this, the reporter logs every broken link as its **own bug**, with the URL and the pages where it appears:
+
+```
+Error: Broken link: http://localhost:4000/terms.html
+Found on: http://localhost:4000/ (link text "Terms and Conditions"), ... and 6 more page(s)
+Expected: "HTTP 200 OK"
+Received: "HTTP 404 Not Found"
+```
+
+The ML model then gives each one a severity. The two "404" links come out **Major** and the "500" Help Center link comes out **Critical**, so it also triggers an email alert.
+
+**ShopEase's seeded broken links:** footer *Help Center* (HTTP 500), footer *Terms and Conditions* (404), and the *Spec sheet (PDF)* link on Laptop Pro 14 (404). The checker crawls 11 pages, checks 11 unique links and finds exactly these 3.
+
+**Any real website** can be checked with one setting:
+
+```bash
+LINK_CHECK_START_URL=https://your-website.com npm run test:links
+```
+
+---
+
 ## Part D: Live demo script (about 10 minutes)
 
 Before the demo, run these once so the browser is installed and the data starts clean:
@@ -174,13 +201,14 @@ npm run db:reset
 | 1 | `npm run demo-app`, open http://localhost:4000 | "This is ShopEase, the application under test. It has 5 modules: Login, Search, Cart, Checkout, Profile." Log in with `student / Password@123`, try checkout to show the 500 error. Stop it with Ctrl+C. |
 | 2 | `npm run train` | "The model is trained on 179 labelled error messages." Point at the **86.1% hold-out accuracy**, the **87.2% cross-validation accuracy**, the per-class precision/recall/F1 and the **confusion matrix**. |
 | 3 | `npx tsx src/ml/classifier.ts "Typo in the button label"` then `npx tsx src/ml/classifier.ts "Server crashed with 500 error during payment"` | The model predicts Minor for the first message and Critical for the second, each with a confidence value. |
-| 4 | `npm run pipeline` | The demo app starts automatically and the 16 tests run 5 times. Point at the terminal lines like `New bug #N logged - Critical (100% confidence)` and, in later runs, `Known bug #N seen again` (no duplicates). At the end the pipeline prints the **flaky tests** found. |
+| 4 | `npm run pipeline` | The demo app starts automatically and the 17 tests run 5 times. Point at the terminal lines like `New bug #N logged - Critical (100% confidence)` and, in later runs, `Known bug #N seen again` (no duplicates). At the end the pipeline prints the **flaky tests** found. |
 | 5 | Open any file in `reports/alerts/` (e.g. `critical-bug-<id>.html`) | "This is the email sent for every new Critical bug. With SMTP settings in `.env` it goes to a real inbox." |
 | 6 | `npm run dashboard`, open http://localhost:3000 | **Overview:** KPI cards, bugs per module, severity distribution, 14-day trend. |
 | 7 | **Bugs** page | Filter Severity = Critical; search "payment"; search a bug ID such as "#4". Click **→ In Progress** on one bug. |
 | 8 | Click a bug | Show the error, the **screenshot**, the ML confidence, the stability history, and the status history. Change the status to Resolved and show the new history row. |
 | 9 | **Flaky Tests** page | The 2 flaky tests with failure rate, flip rate and P/F history, compared with tests that are consistently failing or stable. |
 | 10 | **Test Runs** page | Summary of every run. "Everything is traceable in one SQLite database." |
+| 10b | `npm run test:headed -- --grep @Links` | Watch the browser visit every page of ShopEase, then show the three `Broken link` bugs on the **Bugs** page (filter Module = Links). Optionally run `LINK_CHECK_START_URL=https://example.com npm run test:links` to show it works on any website. |
 | 11 | Open `reports/bug-report.html` | The generated results report: one file with run summaries, the bug register, charts, flaky analysis, ML evaluation and every failure with its screenshot. It can be printed or saved as PDF from the browser. Playwright's own report is at `reports/playwright-html/index.html` (`npx playwright show-report reports/playwright-html`). |
 | (optional) | `npm run seed:history`, refresh the overview | Fills the previous 13 days with **simulated** bugs so the 14-day trend chart has a full shape. Say clearly that this is simulated data; these bugs carry a "Simulated" tag. |
 
@@ -245,6 +273,9 @@ Playwright only marks a test as flaky when it fails and then passes on a retry *
 
 **Q12. What happens if the model is wrong?**
 The prediction and its confidence are visible on the bug page. Low-confidence predictions can be reviewed by a person. Corrected labels can be added to `training-data.csv` and the model retrained with `npm run train`.
+
+**Q12b. How does the broken link checker work, and why is each broken link a separate bug?**
+It crawls every page of the same website in a real browser, collects every `<a href>`, and requests each unique link (HEAD, then GET). Any 4xx/5xx or unreachable link is broken. Each broken link has a different cause and a different fix, so each one is a separate soft assertion and therefore a separate bug with its own status, severity and history.
 
 **Q13. What are the limitations?**
 * The dataset is small and partly hand-written.

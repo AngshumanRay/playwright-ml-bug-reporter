@@ -6,6 +6,7 @@ An end-to-end system that runs automated browser tests with **Playwright**. It d
 * predicts the bug's **severity (Critical / Major / Minor)** with a **Machine Learning** model
 * stores everything in **SQLite**
 * detects **flaky tests**
+* checks every link on every page of a website and reports **broken links**
 * emails an alert for **Critical** bugs
 * shows a **web dashboard** with analytics
 
@@ -32,6 +33,7 @@ An end-to-end system that runs automated browser tests with **Playwright**. It d
 | 6 | Detect flaky tests that pass and fail inconsistently across runs | [src/flaky/flakyDetector.ts](src/flaky/flakyDetector.ts) → `/flaky` |
 | 7 | Automatic email alert for Critical bugs | [src/alerts/emailNotifier.ts](src/alerts/emailNotifier.ts) |
 | 8 | Complete end-to-end pipeline | [scripts/run-pipeline.ts](scripts/run-pipeline.ts) → `npm run pipeline` |
+| + | Additional: crawl a website and report broken links | [src/links/linkCrawler.ts](src/links/linkCrawler.ts), [tests/links.spec.ts](tests/links.spec.ts) → `npm run test:links` |
 
 ---
 
@@ -62,7 +64,8 @@ playwright-ml-bug-reporter/
 │   ├── search.spec.ts
 │   ├── cart.spec.ts
 │   ├── checkout.spec.ts
-│   └── profile.spec.ts
+│   ├── profile.spec.ts
+│   └── links.spec.ts            Crawls the website and reports every broken link
 ├── src/
 │   ├── config.ts                All settings (paths, ports, email, flaky thresholds)
 │   ├── reporter/bugReporter.ts  Custom Playwright reporter: capture → classify → store → alert
@@ -75,6 +78,7 @@ playwright-ml-bug-reporter/
 │   │   └── model/severity-model.json   Trained model
 │   ├── db/database.ts           SQLite schema and all queries
 │   ├── flaky/flakyDetector.ts   Flaky test analysis across runs
+│   ├── links/linkCrawler.ts     Website crawler + HTTP status check of every link
 │   ├── alerts/emailNotifier.ts  Critical bug email (SMTP) or HTML preview
 │   └── dashboard/               Express web dashboard (server.ts, views/*.ejs, public/*)
 ├── scripts/
@@ -126,6 +130,8 @@ npm run dashboard       # open http://localhost:3000
 |---|---|
 | `npm run train` | Trains the ML model and prints accuracy, precision, recall, F1, confusion matrix and 5-fold cross-validation |
 | `npm test` | Runs the Playwright suite once (the demo app starts automatically); failures are logged as bugs |
+| `npm run test:headed` | Same, with a visible browser (add `SLOW_MO=500` to slow it down) |
+| `npm run test:links` | Only the broken link checker (see section 12) |
 | `npm run pipeline` | Full pipeline. Options: `-- --runs=10`, `-- --retrain`, `-- --dashboard` |
 | `npm run flaky` | Prints the flaky-test report in the terminal |
 | `npm run dashboard` | Starts the web dashboard at http://localhost:3000 |
@@ -176,8 +182,11 @@ The email contains the bug ID, module, test name, timestamp, browser and error m
 | Profile | address label is spelled correctly | Label says "Adress" | **Minor** |
 | Profile | save button uses the brand primary colour | Grey button instead of brand blue | **Minor** |
 | Profile | order history loads without JavaScript errors | Uncaught `TypeError` crashes the page | **Critical** |
+| Links | all links on the website are reachable | Footer "Help Center" link returns HTTP 500 | **Critical** |
+| Links | all links on the website are reachable | Footer "Terms and Conditions" page does not exist (404) | **Major** |
+| Links | all links on the website are reachable | "Spec sheet (PDF)" link on Laptop Pro 14 does not exist (404) | **Major** |
 
-There are 16 tests in total: 10 seeded failures (including the 2 flaky tests) and 6 tests that always pass (valid login, invalid password message, search for "Laptop", remove from cart, zip-code validation, profile username).
+There are 17 tests in total: 11 tests that find seeded defects (including the 2 flaky tests and the link checker) and 6 tests that always pass (valid login, invalid password message, search for "Laptop", remove from cart, zip-code validation, profile username). The link checker is one test, but it logs **each broken link as a separate bug**, so one run produces 13 bugs.
 
 ---
 
@@ -207,7 +216,7 @@ Confusion matrix on the hold-out set (rows = actual, columns = predicted):
 | **Major** | 0 | 12 | 0 |
 | **Minor** | 0 | 3 | 8 |
 
-On the real Playwright failures from the demo app, the model classifies **all 10 seeded defects as expected** (see the table in section 7). The confidence of each prediction is stored with the bug and shown in the dashboard.
+On the real Playwright failures from the demo app, the model classifies **all 13 seeded defects as expected** (10 functional defects and 3 broken links) (see the table in section 7). The confidence of each prediction is stored with the bug and shown in the dashboard.
 
 ---
 
@@ -255,7 +264,32 @@ Playwright retries are disabled on purpose (`retries: 0`), so flakiness is measu
 
 ---
 
-## 12. Troubleshooting
+## 12. Broken link checker
+
+[tests/links.spec.ts](tests/links.spec.ts) (module **Links**) uses [src/links/linkCrawler.ts](src/links/linkCrawler.ts):
+
+1. **Crawl:** it starts at one page and opens every page of the same website in a real browser, up to `LINK_CHECK_MAX_PAGES`. Because it uses a real browser, links added by JavaScript are found too. It collects every `<a href>` link. `mailto:`, `tel:`, `javascript:` and `#` links are skipped.
+2. **Check:** every unique link is requested and its HTTP status recorded. HEAD is tried first, then GET, because some servers don't answer HEAD. Links to other websites are checked but not crawled.
+3. **Report:** a link is **broken** if it answers HTTP 4xx/5xx or cannot be reached. Each broken link is a separate soft assertion, so the reporter logs it as its own bug, titled `Broken link: <url>`. The bug lists the pages where the link was found, and its severity comes from the ML model like any other bug. Repeat runs increase the bug's occurrence count instead of creating duplicates.
+
+The full list of every link and its status is attached to the Playwright HTML report as `link-check-report.json`.
+
+**Checking any website.** Set the start URL in `.env`, or on the command line:
+
+```bash
+LINK_CHECK_START_URL=https://your-website.com npm run test:links
+```
+
+| Setting (`.env`) | Default | Meaning |
+|---|---|---|
+| `LINK_CHECK_START_URL` | `/` | A path on the app under test, or the full URL of any website |
+| `LINK_CHECK_MAX_PAGES` | `50` | Maximum number of pages to crawl |
+| `LINK_CHECK_EXTERNAL` | `true` | Also check links that point to other websites |
+| `LINK_CHECK_TIMEOUT_MS` | `10000` | Time limit for each page or link |
+
+---
+
+## 13. Troubleshooting
 
 | Problem | Solution |
 |---|---|
@@ -267,3 +301,4 @@ Playwright retries are disabled on purpose (`retries: 0`), so flakiness is measu
 | Email not received | Check `ALERTS_ENABLED=true`, use a Gmail **App Password**, check the terminal message after the run |
 | `better-sqlite3` build error after a Node upgrade | `npm rebuild better-sqlite3` |
 | Want a clean start | `npm run db:reset` |
+| Link checker reports external links as broken | Some sites block automated requests; set `LINK_CHECK_EXTERNAL=false` to check only your own site's links |

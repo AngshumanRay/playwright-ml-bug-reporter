@@ -34,6 +34,15 @@ export const config = {
     to: (env.ALERT_TO ?? '').split(',').map((s) => s.trim()).filter(Boolean),
   },
 
+  // Broken link checker: where to start crawling (path on the app under test, or a full URL),
+  // how many pages to crawl at most, and whether links to other websites are checked too
+  linkCheck: {
+    startUrl: env.LINK_CHECK_START_URL ?? '/',
+    maxPages: Number(env.LINK_CHECK_MAX_PAGES ?? 50),
+    checkExternal: (env.LINK_CHECK_EXTERNAL ?? 'true').toLowerCase() === 'true',
+    timeoutMs: Number(env.LINK_CHECK_TIMEOUT_MS ?? 10_000),
+  },
+
   // Flaky detection: look at the last N runs; a test needs at least MIN_RUNS results to be judged
   flaky: {
     windowRuns: 10,

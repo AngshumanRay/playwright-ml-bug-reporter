@@ -6,6 +6,7 @@
     "demo-app": "tsx demo-app/server.ts",
     "test": "playwright test",
     "test:headed": "playwright test --headed --workers=1",
+    "test:links": "playwright test --grep @Links",
     "pipeline": "tsx scripts/run-pipeline.ts",
     "flaky": "tsx src/flaky/flakyDetector.ts",
     "dashboard": "tsx src/dashboard/server.ts",

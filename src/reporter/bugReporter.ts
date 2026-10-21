@@ -82,13 +82,20 @@ class BugReporter implements Reporter {
       executed_at: executedAt,
     });
 
-    if (failed && errorMessage) this.logBug(test, result, { testKey, module, file, executedAt, errorMessage });
+    if (!failed) return;
+    // Soft assertions (e.g. one per broken link) give several errors: each one is a separate defect
+    const messages = result.errors.map((e) => cleanErrorMessage(e.message ?? e.value ?? '')).filter(Boolean);
+    if (!messages.length) messages.push(errorMessage ?? `Test ${result.status}`);
+    for (const message of messages) {
+      const title = messages.length > 1 ? message.split('\n')[0].replace(/^Error:\s*/, '') : test.title;
+      this.logBug(test, result, { testKey, module, file, executedAt, errorMessage: message, title });
+    }
   }
 
   private logBug(
     test: TestCase,
     result: TestResult,
-    info: { testKey: string; module: string; file: string; executedAt: string; errorMessage: string },
+    info: { testKey: string; module: string; file: string; executedAt: string; errorMessage: string; title: string },
   ): void {
     const screenshot = this.saveScreenshot(result, info.testKey);
     const fp = fingerprint(info.testKey, info.errorMessage);
@@ -96,7 +103,7 @@ class BugReporter implements Reporter {
 
     if (existing) {
       recordOccurrence(existing.id, this.runId, screenshot, info.executedAt);
-      console.log(`[BugReporter] Known bug #${existing.id} seen again (${existing.severity}) - ${info.testKey}`);
+      console.log(`[BugReporter] Known bug #${existing.id} seen again (${existing.severity}) - ${info.title}`);
       return;
     }
 
@@ -105,7 +112,7 @@ class BugReporter implements Reporter {
       fingerprint: fp,
       first_run_id: this.runId,
       test_key: info.testKey,
-      title: test.title,
+      title: info.title,
       module: info.module,
       file: info.file,
       browser: test.parent.project()?.name ?? 'unknown',
@@ -119,7 +126,7 @@ class BugReporter implements Reporter {
     this.newBugIds.push(bugId);
     console.log(
       `[BugReporter] New bug #${bugId} logged - ${prediction.label} ` +
-      `(${(prediction.confidence * 100).toFixed(0)}% confidence) - ${info.testKey}`,
+      `(${(prediction.confidence * 100).toFixed(0)}% confidence) - ${info.title}`,
     );
   }
 

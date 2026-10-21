@@ -9,6 +9,7 @@
     <button id="search-btn">Search</button>
   </div>
   <p id="result-info"></p>
+  <!-- SEEDED BROKEN LINK: the Laptop Pro 14 spec sheet PDF was never uploaded (404) -->
   <div id="product-list" class="products"></div>
 </main>
 <script>
@@ -19,6 +20,7 @@
       <div class="product" data-testid="product-card">
         <h3>${p.name}</h3>
         <div>${money(p.price)}</div>
+        ${p.id === 1 ? '<a href="/downloads/laptop-pro-14-specs.pdf" style="font-size:13px">Spec sheet (PDF)</a>' : ''}
         <button data-id="${p.id}">Add to cart</button>
       </div>`).join('');
   }

@@ -11,6 +11,9 @@
  *   Profile   - "Adress" label typo, grey Save button                 (Minor)
  *             - profile save API has a random delay                   (FLAKY)
  *             - order history crashes with a JavaScript TypeError     (Critical)
+ *   Links     - footer "Help Center" returns HTTP 500                 (broken link)
+ *             - footer "Terms and Conditions" page does not exist     (broken link, 404)
+ *             - "Spec sheet (PDF)" on Laptop Pro 14 does not exist    (broken link, 404)
  *
  * Run standalone:  npm run demo-app   (Playwright also starts it automatically)
  */
@@ -35,6 +38,11 @@ const randomDelay = (min: number, max: number) =>
   new Promise((resolve) => setTimeout(resolve, min + Math.random() * (max - min)));
 
 app.get('/', (_req, res) => res.redirect('/login.html'));
+
+// SEEDED BROKEN LINK: the help center crashes with HTTP 500
+app.get('/help', (_req, res) => {
+  res.status(500).send('500 Internal Server Error: help center service crashed');
+});
 
 app.post('/api/login', (req, res) => {
   const { username = '', password = '' } = req.body ?? {};

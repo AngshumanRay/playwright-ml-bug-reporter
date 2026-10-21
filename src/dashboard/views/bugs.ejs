@@ -34,7 +34,8 @@
         <a href="/bugs/<%= b.id %>"><%= b.title %></a>
         <% if (flakyTests.has(b.test_key)) { %> <span class="pill flaky-tag">Flaky</span><% } %>
         <% if (b.file === 'simulated-history') { %> <span class="pill">Simulated</span><% } %>
-        <div class="muted" style="font-size:13px"><%= b.error_message.split('\n')[0].replace(/^Error:\s*/, '') %></div>
+        <% const lines = b.error_message.split('\n').map(l => l.replace(/^Error:\s*/, '')).filter(Boolean); %>
+        <div class="muted" style="font-size:13px"><%= lines[0] === b.title ? (lines[1] || '') : lines[0] %></div>
       </td>
       <td><%= b.module %></td>
       <td><%- include('partials/sev', { severity: b.severity }) %></td>

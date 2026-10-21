@@ -21,3 +21,5 @@ table { width: 100%; border-collapse: collapse; }
 th, td { text-align: left; padding: 8px; border-bottom: 1px solid #e5e7eb; }
 .search-row { display: flex; gap: 8px; align-items: center; }
 .search-row button { margin-top: 0; }
+.site-footer { max-width: 900px; margin: 40px auto 24px; padding: 16px; border-top: 1px solid #e5e7eb; display: flex; gap: 20px; flex-wrap: wrap; font-size: 14px; }
+.site-footer a { color: #475569; }
