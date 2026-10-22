@@ -229,7 +229,7 @@ dt { color:var(--ink-2); } dd { margin:0; word-break:break-word; }
   <div class="card table-wrap">${criticalBugs.length ? `<table>
     <tr><th>Bug</th><th>Module</th><th>Test</th><th>Detected</th><th>Alert</th></tr>
     ${criticalBugs.map((b) => `<tr><td>#${b.id}</td><td>${esc(b.module)}</td><td>${esc(b.title)}</td><td>${esc(b.created_at)}</td>
-      <td>${b.alert_sent ? 'Email sent' : b.file === 'simulated-history' ? 'Simulated' : fs.existsSync(path.join(config.alertPreviewDir, `critical-bug-${b.id}.html`)) ? `Preview saved: reports/alerts/critical-bug-${b.id}.html` : 'Not sent'}</td></tr>`).join('')}
+      <td>${b.alert_sent ? 'Email sent' : b.file === 'simulated-history' ? 'Simulated' : 'Saved as preview in reports/alerts/ (email not configured)'}</td></tr>`).join('')}
   </table>` : '<p>No Critical bugs detected.</p>'}</div>
 
   <h2>9. Defect details</h2>

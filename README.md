@@ -7,7 +7,7 @@ An end-to-end system that runs automated browser tests with **Playwright**. It d
 * stores everything in **SQLite**
 * detects **flaky tests**
 * checks every link on every page of a website and reports **broken links**
-* emails an alert for **Critical** bugs
+* emails an alert with screenshots whenever a **Critical** bug is detected
 * shows a **web dashboard** with analytics
 
 ```
@@ -31,7 +31,7 @@ An end-to-end system that runs automated browser tests with **Playwright**. It d
 | 4 | Web dashboard to view, filter, search and update bug status (Open → In Progress → Resolved) | [src/dashboard/](src/dashboard/) → `/bugs`, `/bugs/:id` |
 | 5 | Charts: bugs per module, severity distribution, 14-day trend | [src/dashboard/public/charts.js](src/dashboard/public/charts.js) → `/` |
 | 6 | Detect flaky tests that pass and fail inconsistently across runs | [src/flaky/flakyDetector.ts](src/flaky/flakyDetector.ts) → `/flaky` |
-| 7 | Automatic email alert for Critical bugs | [src/alerts/emailNotifier.ts](src/alerts/emailNotifier.ts) |
+| 7 | Automatic email alert whenever a Critical bug is detected (with screenshots) | [src/alerts/criticalAlertEmail.ts](src/alerts/criticalAlertEmail.ts), [src/alerts/emailNotifier.ts](src/alerts/emailNotifier.ts) |
 | 8 | Complete end-to-end pipeline | [scripts/run-pipeline.ts](scripts/run-pipeline.ts) → `npm run pipeline` |
 | + | Additional: crawl a website and report broken links | [src/links/linkCrawler.ts](src/links/linkCrawler.ts), [tests/links.spec.ts](tests/links.spec.ts) → `npm run test:links` |
 
@@ -79,7 +79,8 @@ playwright-ml-bug-reporter/
 │   ├── db/database.ts           SQLite schema and all queries
 │   ├── flaky/flakyDetector.ts   Flaky test analysis across runs
 │   ├── links/linkCrawler.ts     Website crawler + HTTP status check of every link
-│   ├── alerts/emailNotifier.ts  Critical bug email (SMTP) or HTML preview
+│   ├── alerts/criticalAlertEmail.ts  Critical bug email: details + screenshot of every Critical bug
+│   ├── alerts/emailNotifier.ts  Sends the email via SMTP, or saves an HTML preview
 │   └── dashboard/               Express web dashboard (server.ts, views/*.ejs, public/*)
 ├── scripts/
 │   ├── run-pipeline.ts          Full end-to-end pipeline
@@ -144,9 +145,19 @@ npm run dashboard       # open http://localhost:3000
 
 ---
 
-## 6. Email alerts for Critical bugs (configuration)
+## 6. Email alert for Critical bugs (configuration)
 
-By default (`ALERTS_ENABLED=false`) every Critical-bug alert is saved as an HTML file in `reports/alerts/`, so the feature can be shown without an email account.
+**Rule:** when a test run ends and **any Critical bug was detected** in it, **one email** is sent to every address in `ALERT_TO`. It doesn't matter whether the bug is new or was already known. A run with no Critical bug sends no email.
+
+The email contains:
+* the number of Critical bugs and the modules they are in, with the tests executed and failed for context
+* a table of the Critical bugs (ID, module, test, new or known, in how many runs it failed)
+* for each Critical bug: test, file, time detected, browser, ML confidence, dashboard link, the full error message, and a **clear screenshot of the page at the moment of failure**, shown inside the email
+* one line counting the Major and Minor bugs in the same run
+
+`npm test` sends this email when the run ends. `npm run pipeline` runs the suite several times, so it sends **one** email at the end covering all its runs, with the full HTML report attached.
+
+By default (`ALERTS_ENABLED=false`) nothing is emailed. The email is saved as `reports/alerts/critical-alert-run-<run>.html` instead, so the feature can be shown without an email account.
 
 To send real emails, edit `.env`:
 
@@ -162,7 +173,7 @@ ALERT_TO=guide@example.com,team@example.com
 
 For Gmail, turn on 2-Step Verification and create an **App Password** (Google Account → Security → App passwords). Your normal Gmail password will not work.
 
-The email contains the bug ID, module, test name, timestamp, browser and error message, a link to the bug in the dashboard, and the failure screenshot as an attachment. An alert is sent **once per new Critical bug**. When the same bug appears again in later runs, it is counted as a repeat occurrence and no new email is sent.
+If sending fails (wrong password, no internet), the test run still completes, and the terminal shows the error, e.g. `Critical bug email (4 Critical bug(s)) FAILED: Invalid login`.
 
 ---
 
@@ -228,6 +239,7 @@ On the real Playwright failures from the demo app, the model classifies **all 13
 | `test_results` | One row per test per run (history for flaky detection) | run_id, test_key, title, module, status, duration_ms, error_message, executed_at |
 | `bugs` | One row per unique defect | test_key, module, error_message, error_stack, screenshot_path, severity, confidence, status, occurrences, alert_sent, created_at, last_seen_at |
 | `bug_history` | Every status change (audit trail / traceability) | bug_id, old_status, new_status, changed_at |
+| `bug_occurrences` | Every run in which a bug was seen (used by the Critical bug email) | bug_id, run_id, seen_at |
 
 **De-duplication:** each bug has a fingerprint, calculated as SHA-1 of the test name plus the error text with digits removed. If the same failure happens again while the bug is still Open or In Progress, the bug's `occurrences` counter goes up and no duplicate is created. If a **Resolved** bug fails again, a new bug is opened, because that is a regression.
 

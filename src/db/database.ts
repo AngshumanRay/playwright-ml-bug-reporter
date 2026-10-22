@@ -6,6 +6,7 @@
  *  - test_results  one row per test per run (pass/fail history -> flaky detection)
  *  - bugs          one row per unique defect (deduplicated by fingerprint)
  *  - bug_history   every status change of a bug (traceability / audit trail)
+ *  - bug_occurrences  every run in which a bug was seen (for per-run summaries)
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -143,6 +144,13 @@ function createSchema(conn: Database.Database): void {
     );
     CREATE INDEX IF NOT EXISTS idx_bugs_fingerprint ON bugs(fingerprint);
 
+    CREATE TABLE IF NOT EXISTS bug_occurrences (
+      bug_id   INTEGER NOT NULL REFERENCES bugs(id) ON DELETE CASCADE,
+      run_id   INTEGER NOT NULL,
+      seen_at  TEXT NOT NULL,
+      PRIMARY KEY (bug_id, run_id)
+    );
+
     CREATE TABLE IF NOT EXISTS bug_history (
       id          INTEGER PRIMARY KEY AUTOINCREMENT,
       bug_id      INTEGER NOT NULL REFERENCES bugs(id) ON DELETE CASCADE,
@@ -176,6 +184,11 @@ export function finishRun(
 
 export function listRuns(limit = 50): TestRun[] {
   return getDb().prepare('SELECT * FROM test_runs ORDER BY started_at DESC, id DESC LIMIT ?').all(limit) as TestRun[];
+}
+
+export function getRuns(ids: number[]): TestRun[] {
+  if (!ids.length) return [];
+  return getDb().prepare(`SELECT * FROM test_runs WHERE id IN (${ids.map(() => '?').join(',')}) ORDER BY id`).all(...ids) as TestRun[];
 }
 
 // ------------------------------------------------------------- test results
@@ -228,6 +241,7 @@ export function insertBug(
   conn
     .prepare('INSERT INTO bug_history (bug_id, old_status, new_status, changed_at) VALUES (?, NULL, ?, ?)')
     .run(id, 'Open', bug.created_at);
+  conn.prepare('INSERT OR IGNORE INTO bug_occurrences (bug_id, run_id, seen_at) VALUES (?, ?, ?)').run(id, bug.first_run_id, bug.created_at);
   return id;
 }
 
@@ -239,6 +253,19 @@ export function recordOccurrence(bugId: number, runId: number, screenshotPath: s
        screenshot_path = COALESCE(?, screenshot_path) WHERE id = ?`,
     )
     .run(runId, seenAt, screenshotPath, bugId);
+  getDb().prepare('INSERT OR IGNORE INTO bug_occurrences (bug_id, run_id, seen_at) VALUES (?, ?, ?)').run(bugId, runId, seenAt);
+}
+
+/** Bugs seen (new or again) in any of the given runs, with the number of those runs they appeared in. */
+export function bugsSeenInRuns(ids: number[]): (Bug & { seen_in_runs: number })[] {
+  if (!ids.length) return [];
+  return getDb()
+    .prepare(`SELECT b.*, COUNT(o.run_id) AS seen_in_runs FROM bugs b
+      JOIN bug_occurrences o ON o.bug_id = b.id
+      WHERE o.run_id IN (${ids.map(() => '?').join(',')})
+      GROUP BY b.id
+      ORDER BY CASE b.severity WHEN 'Critical' THEN 0 WHEN 'Major' THEN 1 ELSE 2 END, b.id`)
+    .all(...ids) as (Bug & { seen_in_runs: number })[];
 }
 
 export function markAlertSent(bugId: number): void {
@@ -348,6 +375,6 @@ export function overviewCounts() {
 
 export function resetDatabase(): void {
   const conn = getDb();
-  conn.exec('DELETE FROM bug_history; DELETE FROM bugs; DELETE FROM test_results; DELETE FROM test_runs;');
+  conn.exec('DELETE FROM bug_occurrences; DELETE FROM bug_history; DELETE FROM bugs; DELETE FROM test_results; DELETE FROM test_runs;');
   conn.exec(`DELETE FROM sqlite_sequence WHERE name IN ('bug_history','bugs','test_results','test_runs');`);
 }

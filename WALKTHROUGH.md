@@ -83,7 +83,7 @@ reporter: [['list'], ['./src/reporter/bugReporter.ts']],
 |---|---|
 | `onBegin()` | Creates a new row in `test_runs` |
 | `onTestEnd(test, result)` | Saves the result in `test_results`; if the test failed, it builds a bug: **error message** (`result.errors`, cleaned of colour codes and the long "Call log"), **screenshot** (copied from `result.attachments` into `reports/screenshots/`), **timestamp** (start time + duration), **module** (from the `@Checkout` tag), plus test name, file, browser and stack trace |
-| `onEnd()` | Saves the run summary (total, passed, failed, duration, new bugs) and sends alerts for new Critical bugs |
+| `onEnd()` | Saves the run summary (total, passed, failed, duration, new bugs); if any Critical bug was detected in the run, sends one email with all Critical bugs and their screenshots |
 
 ### Step 4: The ML model predicts the severity (Objective 2)
 
@@ -119,10 +119,11 @@ If the same failure happens in the next run, the reporter finds the existing bug
 
 ### Step 6: Critical, so an email alert is sent (Objective 7)
 
-In `onEnd()`, every **new** Critical bug goes to `sendCriticalBugAlert()`:
+In `onEnd()`, the reporter calls `sendCriticalAlert()` (`src/alerts/criticalAlertEmail.ts`). If **any** Critical bug was detected in this run, new or already known, **one email** goes to everyone in `ALERT_TO`. For each Critical bug it contains the module, test, time, ML confidence, the full error message and a **clear screenshot** of the page at the moment of failure. A run without Critical bugs sends no email.
 
-* If SMTP is configured in `.env`, Nodemailer sends an HTML email with the details, a dashboard link and the screenshot attached.
-* If not, the same email is written to `reports/alerts/critical-bug-<id>.html`, so it can be opened in a browser during the demo.
+* If SMTP is configured in `.env`, Nodemailer sends the email. The screenshots are embedded so they appear inside the email.
+* If not, the same email is written to `reports/alerts/critical-alert-run-<run>.html`, so it can be opened in a browser during the demo.
+* `npm run pipeline` runs the suite several times, so it sends one email at the end covering all runs, with the HTML report attached.
 
 ### Step 7: The bug appears on the dashboard (Objectives 4 and 5)
 
@@ -202,7 +203,7 @@ npm run db:reset
 | 2 | `npm run train` | "The model is trained on 179 labelled error messages." Point at the **86.1% hold-out accuracy**, the **87.2% cross-validation accuracy**, the per-class precision/recall/F1 and the **confusion matrix**. |
 | 3 | `npx tsx src/ml/classifier.ts "Typo in the button label"` then `npx tsx src/ml/classifier.ts "Server crashed with 500 error during payment"` | The model predicts Minor for the first message and Critical for the second, each with a confidence value. |
 | 4 | `npm run pipeline` | The demo app starts automatically and the 17 tests run 5 times. Point at the terminal lines like `New bug #N logged - Critical (100% confidence)` and, in later runs, `Known bug #N seen again` (no duplicates). At the end the pipeline prints the **flaky tests** found. |
-| 5 | Open any file in `reports/alerts/` (e.g. `critical-bug-<id>.html`) | "This is the email sent for every new Critical bug. With SMTP settings in `.env` it goes to a real inbox." |
+| 5 | Open `reports/alerts/critical-alert-run-<run>.html` | "Whenever a run detects a Critical bug, this email goes to everyone in `.env`: every Critical bug with its details and a screenshot of the failure. With SMTP settings in `.env` it goes to a real inbox." |
 | 6 | `npm run dashboard`, open http://localhost:3000 | **Overview:** KPI cards, bugs per module, severity distribution, 14-day trend. |
 | 7 | **Bugs** page | Filter Severity = Critical; search "payment"; search a bug ID such as "#4". Click **→ In Progress** on one bug. |
 | 8 | Click a bug | Show the error, the **screenshot**, the ML confidence, the stability history, and the status history. Change the status to Resolved and show the new history row. |
@@ -270,6 +271,9 @@ Playwright only marks a test as flaky when it fails and then passes on a retry *
 * Run `npx playwright test` in CI (e.g. GitHub Actions) on every commit.
 * Keep the database on a shared machine or move to PostgreSQL.
 * Retrain the model with the team's own labelled historical bugs.
+
+**Q11b. Who gets emails, and when?**
+Everyone listed in `ALERT_TO` in `.env`. Whenever a test run detects at least one Critical bug, new or already known, they get **one email** with every Critical bug's details and screenshot. Runs without Critical bugs send nothing, so the email always means there is something urgent. The pipeline sends one email for all its runs.
 
 **Q12. What happens if the model is wrong?**
 The prediction and its confidence are visible on the bug page. Low-confidence predictions can be reviewed by a person. Corrected labels can be added to `training-data.csv` and the model retrained with `npm run train`.

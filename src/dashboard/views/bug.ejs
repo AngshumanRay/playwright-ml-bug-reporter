@@ -41,7 +41,7 @@
         <dt>First detected</dt><dd><%= bug.created_at %> (run #<%= bug.first_run_id %>)</dd>
         <dt>Last seen</dt><dd><%= bug.last_seen_at %> (run #<%= bug.last_run_id %>)</dd>
         <dt>Occurrences</dt><dd><%= bug.occurrences %></dd>
-        <dt>Email alert</dt><dd><%= bug.severity !== 'Critical' ? 'Not required' : bug.alert_sent ? 'Sent' : 'Preview saved (alerts disabled)' %></dd>
+        <dt>Email alert</dt><dd><%= bug.severity !== 'Critical' ? 'Not required' : bug.alert_sent ? 'Sent' : 'Preview saved in reports/alerts/ (email not configured)' %></dd>
       </dl>
     </div>
 

@@ -7,7 +7,9 @@
  *                 error message + screenshot + timestamp + module are captured,
  *                 severity is predicted by the ML model, and the bug is saved
  *                 (or, if the same defect is already open, its occurrence count is increased)
- *   onEnd      -> run summary is saved and email alerts are sent for new Critical bugs
+ *   onEnd      -> run summary is saved; if any Critical bug was detected in this run, ONE email
+ *                 with every Critical bug and its screenshot is sent (the pipeline sends one
+ *                 email for all its runs instead)
  *
  * Registered in playwright.config.ts -> reporter: [['./src/reporter/bugReporter.ts']]
  */
@@ -17,12 +19,12 @@ import path from 'node:path';
 import type { FullResult, Reporter, TestCase, TestResult } from '@playwright/test/reporter';
 import { config } from '../config';
 import {
-  createRun, finishRun, findActiveBug, getBug, insertBug, insertTestResult,
-  markAlertSent, recordOccurrence, timestamp,
+  createRun, finishRun, findActiveBug, insertBug, insertTestResult,
+  recordOccurrence, timestamp,
 } from '../db/database';
 import { predictSeverity } from '../ml/classifier';
 import { stripAnsi } from '../ml/textPreprocessor';
-import { sendCriticalBugAlert } from '../alerts/emailNotifier';
+import { sendCriticalAlert } from '../alerts/criticalAlertEmail';
 
 /** Keeps the useful part of a Playwright error (drops the long "Call log" section). */
 export function cleanErrorMessage(message: string): string {
@@ -149,12 +151,9 @@ class BugReporter implements Reporter {
       new_bugs: this.newBugIds.length,
     });
 
-    for (const id of this.newBugIds) {
-      const bug = getBug(id);
-      if (bug?.severity !== 'Critical') continue;
-      const outcome = await sendCriticalBugAlert(bug);
-      if (outcome.sent) markAlertSent(id);
-      console.log(`[BugReporter] ${outcome.detail}`);
+    if (!process.env.BUG_PIPELINE) {
+      const outcome = await sendCriticalAlert([this.runId]);
+      console.log(`[BugReporter] ${outcome ? outcome.detail : 'No Critical bug in this run - no email sent'}`);
     }
 
     const { total, passed, failed } = this.counts;
