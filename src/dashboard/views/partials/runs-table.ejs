@@ -1,13 +1,13 @@
 <% if (!runs.length) { %>
-  <p class="empty">No test runs yet. Run <code>npm test</code> or <code>npm run pipeline</code>.</p>
+  <p class="empty">No test runs yet. <a href="/">Start one from the Test Runner</a>.</p>
 <% } else { %>
 <div class="table-wrap"><table>
   <tr><th>Run</th><th>Started</th><th>Result</th><th class="num">Tests</th><th class="num">Passed</th><th class="num">Failed</th><th class="num">Pass rate</th><th class="num">New bugs</th><th class="num">Duration</th></tr>
   <% runs.forEach(r => { %>
   <tr>
-    <td>#<%= r.id %></td>
+    <td><a href="/runs/<%= r.id %>">#<%= r.id %></a></td>
     <td><%= r.started_at %></td>
-    <td><span class="pill <%= r.status === 'passed' ? 'ok-tag' : 'fail-tag' %>"><%= r.status %></span></td>
+    <td><span class="pill run-<%= r.status %>"><%= r.status %></span></td>
     <td class="num"><%= r.total %></td>
     <td class="num"><%= r.passed %></td>
     <td class="num"><%= r.failed %></td>

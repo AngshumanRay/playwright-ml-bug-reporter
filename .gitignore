@@ -8,3 +8,4 @@ playwright-report/
 reports/playwright-html/
 reports/bug-report.html
 .DS_Store
+reports/runs/*.html

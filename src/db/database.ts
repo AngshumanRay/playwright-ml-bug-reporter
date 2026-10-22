@@ -24,6 +24,13 @@ export interface TestRun {
   skipped: number;
   duration_ms: number;
   new_bugs: number;
+  suite: string | null; // smoke / sanity / regression / links, or null for runs started from the command line
+  trigger_source: string | null; // dashboard / cli / pipeline
+  recipients: string | null; // comma-separated emails entered in the Test Runner
+  email_mode: string | null; // always / critical
+  email_status: string | null;
+  planned_total: number | null;
+  report_file: string | null;
 }
 
 export interface TestResultRow {
@@ -36,6 +43,7 @@ export interface TestResultRow {
   status: string;
   duration_ms: number;
   error_message: string | null;
+  screenshot_path: string | null;
   executed_at: string;
 }
 
@@ -159,13 +167,47 @@ function createSchema(conn: Database.Database): void {
       changed_at  TEXT NOT NULL
     );
   `);
+
+  // Columns added for the Test Runner UI (added to existing databases too)
+  addColumnIfMissing(conn, 'test_runs', 'suite', 'TEXT');
+  addColumnIfMissing(conn, 'test_runs', 'trigger_source', 'TEXT');
+  addColumnIfMissing(conn, 'test_runs', 'recipients', 'TEXT');
+  addColumnIfMissing(conn, 'test_runs', 'email_mode', 'TEXT');
+  addColumnIfMissing(conn, 'test_runs', 'email_status', 'TEXT');
+  addColumnIfMissing(conn, 'test_runs', 'planned_total', 'INTEGER');
+  addColumnIfMissing(conn, 'test_runs', 'report_file', 'TEXT');
+  addColumnIfMissing(conn, 'test_results', 'screenshot_path', 'TEXT');
+}
+
+function addColumnIfMissing(conn: Database.Database, table: string, column: string, type: string): void {
+  const columns = conn.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+  if (!columns.some((c) => c.name === column)) conn.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
 }
 
 // ---------------------------------------------------------------- test runs
 
-export function createRun(startedAt: string = timestamp()): number {
-  const info = getDb().prepare('INSERT INTO test_runs (started_at) VALUES (?)').run(startedAt);
+export interface RunMeta {
+  suite?: string | null;
+  trigger_source?: string | null;
+  recipients?: string | null;
+  email_mode?: string | null;
+}
+
+export function createRun(startedAt: string = timestamp(), meta: RunMeta = {}): number {
+  const info = getDb()
+    .prepare('INSERT INTO test_runs (started_at, suite, trigger_source, recipients, email_mode) VALUES (?, ?, ?, ?, ?)')
+    .run(startedAt, meta.suite ?? null, meta.trigger_source ?? 'cli', meta.recipients ?? null, meta.email_mode ?? null);
   return Number(info.lastInsertRowid);
+}
+
+export function getRun(id: number): TestRun | undefined {
+  return getDb().prepare('SELECT * FROM test_runs WHERE id = ?').get(id) as TestRun | undefined;
+}
+
+export function updateRun(id: number, fields: Partial<Pick<TestRun, 'status' | 'planned_total' | 'email_status' | 'report_file' | 'finished_at'>>): void {
+  const keys = Object.keys(fields);
+  if (!keys.length) return;
+  getDb().prepare(`UPDATE test_runs SET ${keys.map((k) => `${k} = @${k}`).join(', ')} WHERE id = @id`).run({ ...fields, id });
 }
 
 export function finishRun(
@@ -196,10 +238,15 @@ export function getRuns(ids: number[]): TestRun[] {
 export function insertTestResult(row: Omit<TestResultRow, 'id'>): void {
   getDb()
     .prepare(
-      `INSERT INTO test_results (run_id, test_key, title, module, file, status, duration_ms, error_message, executed_at)
-       VALUES (@run_id, @test_key, @title, @module, @file, @status, @duration_ms, @error_message, @executed_at)`,
+      `INSERT INTO test_results (run_id, test_key, title, module, file, status, duration_ms, error_message, screenshot_path, executed_at)
+       VALUES (@run_id, @test_key, @title, @module, @file, @status, @duration_ms, @error_message, @screenshot_path, @executed_at)`,
     )
     .run(row);
+}
+
+/** Every test result of one run, in the order the tests finished. */
+export function resultsForRun(runId: number): TestResultRow[] {
+  return getDb().prepare('SELECT * FROM test_results WHERE run_id = ? ORDER BY id').all(runId) as TestResultRow[];
 }
 
 /** Results of the last `windowRuns` completed runs, oldest first (input for flaky detection). */

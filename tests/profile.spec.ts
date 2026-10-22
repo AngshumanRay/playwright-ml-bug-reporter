@@ -1,13 +1,13 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Profile', { tag: '@Profile' }, () => {
-  test('profile shows the logged-in username', async ({ page }) => {
+  test('profile shows the logged-in username', { tag: ['@smoke'] }, async ({ page }) => {
     await page.addInitScript(() => localStorage.setItem('user', 'student'));
     await page.goto('/profile.html');
     await expect(page.getByTestId('profile-username')).toHaveText('student');
   });
 
-  test('saving the profile shows a success message', async ({ page }) => {
+  test('saving the profile shows a success message', { tag: ['@sanity'] }, async ({ page }) => {
     await page.goto('/profile.html');
     await page.getByLabel('Display Name').fill('Shruti');
     await page.getByRole('button', { name: 'Save Profile' }).click();
@@ -33,7 +33,7 @@ test.describe('Profile', { tag: '@Profile' }, () => {
     ).toHaveCSS('background-color', 'rgb(37, 99, 235)');
   });
 
-  test('order history loads without JavaScript errors', async ({ page }) => {
+  test('order history loads without JavaScript errors', { tag: ['@sanity'] }, async ({ page }) => {
     const pageErrors: string[] = [];
     page.on('pageerror', (err) => pageErrors.push(`Uncaught ${err.name}: ${err.message}`));
     await page.goto('/orders.html');

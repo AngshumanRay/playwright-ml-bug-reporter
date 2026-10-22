@@ -1,0 +1,163 @@
+<%
+  const r = report;
+  const STATUS = { running: 'Running', passed: 'Passed', failed: 'Failed', interrupted: 'Stopped', stopped: 'Stopped', timedout: 'Timed out', error: 'Error' };
+  const statusKey = r.run.status === 'interrupted' ? 'stopped' : r.run.status;
+  const fmt = (ms) => { const s = Math.round(ms / 1000); return s < 60 ? s + 's' : Math.floor(s / 60) + 'm ' + String(s % 60).padStart(2, '0') + 's'; };
+  const maxSev = Math.max(1, ...r.severityCounts.map(s => s.count));
+  const resultFor = (testKey) => r.results.find(t => t.test_key === testKey);
+  const link = (href, text) => standalone ? text : `<a href="${href}">${text}</a>`;
+  const escHtml = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+%>
+<section class="card report-hero raised run-<%= statusKey %>">
+  <% if (!standalone) { %><div class="crumbs"><a href="/runs">Run History</a> / <%= r.name %></div><% } %>
+  <div class="hero-row">
+    <div style="min-width:0">
+      <div class="eyebrow">Test run report</div>
+      <h1 class="hero-title"><%= r.name %></h1>
+    </div>
+    <div style="display:grid;gap:10px;justify-items:end">
+      <span class="status-badge run-<%= statusKey %>"><%= (STATUS[statusKey] || r.run.status).toUpperCase() %></span>
+      <% if (!standalone) { %>
+        <div class="hero-actions">
+          <a class="btn ghost small" href="/runs/<%= r.run.id %>/download"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>Download report</a>
+          <% if (r.run.suite) { %><a class="btn small" href="/?suite=<%= r.run.suite %>"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 0 1 15.5-6.3L21 8M21 3v5h-5M21 12a9 9 0 0 1-15.5 6.3L3 16m0 5v-5h5"/></svg>Run again</a><% } %>
+        </div>
+      <% } %>
+    </div>
+  </div>
+  <div class="meta-row">
+    <span class="meta">Suite <b><%= r.suiteName %></b></span>
+    <span class="meta">Started <b><%= r.run.started_at %></b></span>
+    <span class="meta">Duration <b><%= r.duration %></b></span>
+    <span class="meta">Tests <b><%= r.total %><%= r.planned && r.planned !== r.total ? ' of ' + r.planned : '' %></b></span>
+    <span class="meta">Started from <b><%= r.trigger %></b></span>
+    <span class="meta">Browser <b>Chromium</b></span>
+  </div>
+  <div class="email-line">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 6-10 7L2 6"/></svg>
+    <% if (r.recipients.length) { %>Report email (<%= r.run.email_mode === 'critical' ? 'only if a Critical bug is found' : 'after every run' %>): <b><%= r.run.email_status || 'pending' %></b>
+    <% } else { %><span class="muted"><%= r.run.trigger_source === 'dashboard' ? 'No email address was entered for this run' : 'Run started outside the Test Runner (no report email)' %></span><% } %>
+  </div>
+</section>
+
+<% if (r.run.status === 'running') { %>
+  <div class="running-banner" style="margin-top:16px"><span class="spinner"></span>This run is still in progress. The report updates automatically.</div>
+<% } %>
+
+<div class="report-kpis">
+  <div class="card ring-card">
+    <div class="ring <%= r.total ? '' : 'empty-ring' %>" style="--p: <%= r.passRate %>"><div class="ring-inner"><div><b><%= r.passRate %>%</b><span>pass rate</span></div></div></div>
+    <div>
+      <div style="font-weight:700;font-size:16px"><%= r.passedRun ? 'All tests passed' : r.failed ? r.failed + ' test(s) failed' : r.run.status === 'running' ? 'Running…' : 'No failures' %></div>
+      <div class="muted" style="font-size:13px"><%= r.passed %> of <%= r.total %> tests passed</div>
+    </div>
+  </div>
+  <div class="card stat"><div class="value"><%= r.total %></div><div class="label">Tests run</div></div>
+  <div class="card stat pass"><div class="value"><%= r.passed %></div><div class="label">Passed</div></div>
+  <div class="card stat fail"><div class="value"><%= r.failed %></div><div class="label">Failed</div></div>
+  <div class="card stat"><div class="value"><%= r.bugs.length %></div><div class="label">Bugs found · <%= r.bugs.filter(b => b.isNew).length %> new</div></div>
+</div>
+
+<div class="report-grid">
+  <section class="card">
+    <div class="card-title"><h2>Results by module</h2><span class="legend" style="margin:0"><span style="--c: var(--pass)">Passed</span><span style="--c: var(--fail)">Failed</span></span></div>
+    <div class="module-bars">
+      <% if (!r.modules.length) { %><div class="muted">No results yet.</div><% } %>
+      <% r.modules.forEach(m => { %>
+        <div class="module-bar">
+          <span><%= m.module %></span>
+          <span class="track" title="<%= m.passed %> passed, <%= m.failed %> failed"><span class="p" style="width:<%= m.total ? m.passed / m.total * 100 : 0 %>%"></span><span class="f" style="width:<%= m.total ? m.failed / m.total * 100 : 0 %>%"></span></span>
+          <span class="n"><%= m.passed %>/<%= m.total %> passed</span>
+        </div>
+      <% }) %>
+    </div>
+  </section>
+  <section class="card">
+    <div class="card-title"><h2>Bugs by severity</h2><span class="muted" style="font-size:13px">predicted by the ML model</span></div>
+    <div class="sev-bars">
+      <% r.severityCounts.forEach(s => { %>
+        <div class="sev-bar sev-<%= s.severity %>"><span class="pill sev-<%= s.severity %>"><%= s.severity %></span><span class="track"><div style="width:<%= s.count / maxSev * 100 %>%"></div></span><span class="n"><%= s.count %></span></div>
+      <% }) %>
+    </div>
+    <% if (r.criticalBugs.length) { %>
+      <div class="critical-callout">
+        <h3><%= r.criticalBugs.length %> Critical bug(s) need attention</h3>
+        <ul><% r.criticalBugs.forEach(b => { %><li><%- link('/bugs/' + b.id, '#' + b.id) %> · <%= b.module %>: <%= b.title %></li><% }) %></ul>
+      </div>
+    <% } %>
+  </section>
+</div>
+
+<section class="card" style="margin-bottom:18px">
+  <div class="card-title"><h2>Test results</h2><span class="muted" style="font-size:13px">Click a failed test to see its error and screenshot</span></div>
+  <% if (!r.results.length) { %><div class="empty">No test has finished yet.</div><% } %>
+  <% r.modules.forEach(m => { const rows = r.results.filter(t => t.module === m.module).sort((a, b) => (a.status === 'failed' ? 0 : 1) - (b.status === 'failed' ? 0 : 1)); %>
+    <div class="module-group">
+      <h3><%= m.module %> <span class="tag"><%= m.passed %>/<%= m.total %> passed</span></h3>
+      <% rows.forEach(t => { const src = shotSrc(t.screenshot_path); %>
+        <% if (t.status === 'failed') { %>
+          <details class="test-row failed">
+            <summary>
+              <span class="status-icon failed">✕</span>
+              <span class="t-title"><%= t.title %></span>
+              <span><% if (t.severity) { %><span class="pill sev-<%= t.severity %>"><%= t.severity %></span><% } %></span>
+              <span style="display:flex;align-items:center;gap:10px"><span class="t-dur"><%= fmt(t.duration_ms) %></span><span class="chev"></span></span>
+            </summary>
+            <div class="test-detail">
+              <div>
+                <pre><%= t.error_message %></pre>
+                <% if (t.bugs.length) { %>
+                  <div class="bugs-line">Logged as
+                    <% t.bugs.forEach(b => { %><span class="pill sev-<%= b.severity %>"><%- link('/bugs/' + b.id, 'Bug #' + b.id) %></span><% }) %>
+                  </div>
+                <% } %>
+              </div>
+              <div><% if (src) { %><a class="shot" href="<%= src %>" data-full="<%= src %>" data-cap="<%= t.module %>: <%= t.title %>"><img src="<%= src %>" alt="Screenshot when '<%= t.title %>' failed" loading="lazy"></a><% } else { %><span class="muted">No screenshot</span><% } %></div>
+            </div>
+          </details>
+        <% } else { %>
+          <div class="test-row"><div class="row">
+            <span class="status-icon <%= t.status %>"><%= t.status === 'passed' ? '✓' : '–' %></span>
+            <span class="t-title"><%= t.title %></span><span></span>
+            <span class="t-dur"><%= fmt(t.duration_ms) %></span>
+          </div></div>
+        <% } %>
+      <% }) %>
+    </div>
+  <% }) %>
+</section>
+
+<% if (r.bugs.length) { %>
+<section class="card">
+  <div class="card-title"><h2>Bugs found in this run</h2><span class="muted" style="font-size:13px"><%= r.bugs.length %> bug(s) · sorted by severity</span></div>
+  <div class="bug-cards">
+    <% r.bugs.forEach(b => { const res = resultFor(b.test_key); const src = shotSrc((res && res.screenshot_path) || b.screenshot_path); %>
+      <article class="bug-card">
+        <% if (src) { %><a class="shot" href="<%= src %>" data-full="<%= src %>" data-cap="Bug #<%= b.id %>: <%= b.title %>"><img src="<%= src %>" alt="Screenshot for bug #<%= b.id %>" loading="lazy"></a><% } %>
+        <div class="body">
+          <div class="b-meta"><span class="pill sev-<%= b.severity %>"><%= b.severity %></span><span><%= (b.confidence * 100).toFixed(0) %>% confidence</span><span>· <%= b.isNew ? 'New' : 'Known' %></span></div>
+          <div class="b-title"><%- link('/bugs/' + b.id, '#' + b.id + ' ' + escHtml(b.title)) %></div>
+          <div class="b-meta"><span class="tag"><%= b.module %></span><span>first seen <%= b.created_at.slice(0, 10) %></span></div>
+        </div>
+      </article>
+    <% }) %>
+  </div>
+</section>
+<% } %>
+
+<div class="lightbox" id="lightbox" role="dialog" aria-label="Screenshot"><div><img alt=""><div class="cap"></div></div></div>
+<script>
+(function () {
+  var lb = document.getElementById('lightbox');
+  document.querySelectorAll('[data-full]').forEach(function (a) {
+    a.addEventListener('click', function (e) {
+      e.preventDefault();
+      lb.querySelector('img').src = a.getAttribute('data-full');
+      lb.querySelector('.cap').textContent = a.getAttribute('data-cap') || '';
+      lb.classList.add('show');
+    });
+  });
+  lb.addEventListener('click', function () { lb.classList.remove('show'); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') lb.classList.remove('show'); });
+})();
+</script>

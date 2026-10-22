@@ -6,7 +6,7 @@ async function seedCart(page: Page, items: object[]) {
 }
 
 test.describe('Cart', { tag: '@Cart' }, () => {
-  test('adding a product updates the cart badge', async ({ page }) => {
+  test('adding a product updates the cart badge', { tag: ['@smoke'] }, async ({ page }) => {
     await page.goto('/products.html');
     await page.getByTestId('product-card').filter({ hasText: 'Wireless Mouse' })
       .getByRole('button', { name: 'Add to cart' }).click();
@@ -16,7 +16,7 @@ test.describe('Cart', { tag: '@Cart' }, () => {
     ).toHaveText('1', { timeout: 2_000 });
   });
 
-  test('removing a product empties the cart', async ({ page }) => {
+  test('removing a product empties the cart', { tag: ['@sanity'] }, async ({ page }) => {
     await seedCart(page, [{ id: 5, name: 'USB-C Cable', price: '9.99', qty: 1 }]);
     await page.goto('/cart.html');
     await page.getByRole('button', { name: 'Remove' }).click();
@@ -24,7 +24,7 @@ test.describe('Cart', { tag: '@Cart' }, () => {
     await expect(page.getByText('Your cart is empty')).toBeVisible();
   });
 
-  test('cart total equals price multiplied by quantity', async ({ page }) => {
+  test('cart total equals price multiplied by quantity', { tag: ['@sanity'] }, async ({ page }) => {
     await seedCart(page, [{ id: 2, name: 'Wireless Mouse', price: '29.99', qty: 2 }]);
     await page.goto('/cart.html');
     await expect(

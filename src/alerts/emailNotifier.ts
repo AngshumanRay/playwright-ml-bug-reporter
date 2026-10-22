@@ -24,6 +24,12 @@ export interface DeliveryResult {
   detail: string;
 }
 
+/** True when .env has everything needed to send real emails. */
+export function isEmailConfigured(): boolean {
+  const a = config.alerts;
+  return a.enabled && !!a.smtpUser && !!a.smtpPassword;
+}
+
 /**
  * Sends an email to everyone in ALERT_TO, or - when email is not configured - saves the same
  * email as an HTML file in reports/alerts/ (previewHtml can embed images directly for that file).
@@ -35,9 +41,11 @@ export async function deliverEmail(email: {
   previewFile: string;
   previewHtml?: string;
   label: string;
+  to?: string[]; // default: ALERT_TO from .env
 }): Promise<DeliveryResult> {
   const a = config.alerts;
-  if (a.enabled && a.smtpUser && a.smtpPassword && a.to.length) {
+  const to = email.to ?? a.to;
+  if (isEmailConfigured() && to.length) {
     try {
       const transporter = nodemailer.createTransport({
         host: a.smtpHost,
@@ -47,12 +55,12 @@ export async function deliverEmail(email: {
       });
       await transporter.sendMail({
         from: a.from,
-        to: a.to.join(', '),
+        to: to.join(', '),
         subject: email.subject,
         html: email.html,
         attachments: (email.attachments ?? []).filter((f) => fs.existsSync(f.path)),
       });
-      return { sent: true, detail: `${email.label} sent to ${a.to.join(', ')}` };
+      return { sent: true, detail: `${email.label} sent to ${to.join(', ')}` };
     } catch (err) {
       return { sent: false, detail: `${email.label} FAILED: ${(err as Error).message}` };
     }

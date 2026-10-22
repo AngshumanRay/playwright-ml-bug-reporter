@@ -127,7 +127,7 @@ In `onEnd()`, the reporter calls `sendCriticalAlert()` (`src/alerts/criticalAler
 
 ### Step 7: The bug appears on the dashboard (Objectives 4 and 5)
 
-`npm run dashboard` → http://localhost:3000 → **Bugs** → bug "placing an order shows the confirmation".
+`npm start` → http://localhost:3000 → **Bugs** → bug "placing an order shows the confirmation".
 
 The bug page shows:
 * the error
@@ -187,6 +187,38 @@ LINK_CHECK_START_URL=https://your-website.com npm run test:links
 
 ---
 
+## Part C3: Test Runner, the UI for manual testers (additional feature)
+
+**Why.** A manual tester shouldn't need VS Code, a terminal or Playwright commands to run the automation and read the result.
+
+**How it is used**
+1. Double-click `Start Test Runner.command` (Mac) or `Start Test Runner.bat` (Windows). The browser opens the Test Runner.
+2. Choose a suite in the dropdown (**Smoke** 5 tests, **Sanity** 11, **Regression** 17, **Broken links** 1), enter one or more email IDs, choose *after every run* or *only if a Critical bug is found*, and press **Run tests**.
+3. A live panel shows a progress bar, passed/failed counters and each test as it finishes.
+4. At the end the **report** opens in the same UI, and the people entered receive it by email.
+5. Every run is kept in **Run History**, named with its date first, e.g. `2026-10-22 14:29 · Smoke · Run #10`.
+
+**How it works**
+
+```
+ Browser (Test Runner page)                Dashboard server (Express)                     Playwright
+ ─────────────────────────                 ──────────────────────────                     ──────────
+ Run (suite, emails) ── POST /api/runs ──► creates the run row (suite, emails)
+                                           starts: npx playwright test --grep @smoke ───► tests run; BugReporter
+                                                    RUN_ID=12 (env)                        writes results + bugs
+ every 1 s ◄── GET /api/runs/12/live ───── reads results from SQLite + live log            into SQLite (run #12)
+                                           Playwright ends ─► saves reports/runs/<date>_..html
+                                                           ─► emails the report to the entered IDs
+ "Open full report" ─► /runs/12            renders the report from SQLite
+```
+
+* **Suites are Playwright tags.** `test('user can log in…', { tag: ['@smoke', '@sanity'] }, …)` puts a test in Smoke and Sanity. The runner passes `--grep @smoke`, and Regression runs everything.
+* **The run is created before Playwright starts**, so the page can follow it immediately. Its ID is passed to the reporter through the `RUN_ID` environment variable.
+* **Live progress needs no extra machinery.** The reporter already saves each test result in SQLite as soon as the test ends; the page simply asks for them every second.
+* **The report** is one EJS template used in two ways: as a page in the dashboard, and as a self-contained HTML file with styles and screenshots embedded, for download, email attachment and the `reports/runs/` archive.
+
+---
+
 ## Part D: Live demo script (about 10 minutes)
 
 Before the demo, run these once so the browser is installed and the data starts clean:
@@ -199,16 +231,17 @@ npm run db:reset
 
 | Step | Do this | Show / say |
 |---|---|---|
+| 0 | Double-click **Start Test Runner**, choose **Smoke**, enter your guide's email, press **Run tests** | "A manual tester never opens VS Code." Show the live progress, then **Open full report**: pass rate, results by module, the Critical callout. Click a failed test to see its screenshot, and show **Download report** and **Run History**. |
 | 1 | `npm run demo-app`, open http://localhost:4000 | "This is ShopEase, the application under test. It has 5 modules: Login, Search, Cart, Checkout, Profile." Log in with `student / Password@123`, try checkout to show the 500 error. Stop it with Ctrl+C. |
 | 2 | `npm run train` | "The model is trained on 179 labelled error messages." Point at the **86.1% hold-out accuracy**, the **87.2% cross-validation accuracy**, the per-class precision/recall/F1 and the **confusion matrix**. |
 | 3 | `npx tsx src/ml/classifier.ts "Typo in the button label"` then `npx tsx src/ml/classifier.ts "Server crashed with 500 error during payment"` | The model predicts Minor for the first message and Critical for the second, each with a confidence value. |
 | 4 | `npm run pipeline` | The demo app starts automatically and the 17 tests run 5 times. Point at the terminal lines like `New bug #N logged - Critical (100% confidence)` and, in later runs, `Known bug #N seen again` (no duplicates). At the end the pipeline prints the **flaky tests** found. |
 | 5 | Open `reports/alerts/critical-alert-run-<run>.html` | "Whenever a run detects a Critical bug, this email goes to everyone in `.env`: every Critical bug with its details and a screenshot of the failure. With SMTP settings in `.env` it goes to a real inbox." |
-| 6 | `npm run dashboard`, open http://localhost:3000 | **Overview:** KPI cards, bugs per module, severity distribution, 14-day trend. |
+| 6 | Open http://localhost:3000/analytics | **Analytics:** KPI cards, bugs per module, severity distribution, 14-day trend. |
 | 7 | **Bugs** page | Filter Severity = Critical; search "payment"; search a bug ID such as "#4". Click **→ In Progress** on one bug. |
 | 8 | Click a bug | Show the error, the **screenshot**, the ML confidence, the stability history, and the status history. Change the status to Resolved and show the new history row. |
 | 9 | **Flaky Tests** page | The 2 flaky tests with failure rate, flip rate and P/F history, compared with tests that are consistently failing or stable. |
-| 10 | **Test Runs** page | Summary of every run. "Everything is traceable in one SQLite database." |
+| 10 | **Run History** page | Every run named with its date first, grouped by day. "Everything is traceable in one SQLite database." |
 | 10b | `npm run test:headed -- --grep @Links` | Watch the browser visit every page of ShopEase, then show the three `Broken link` bugs on the **Bugs** page (filter Module = Links). Optionally run `LINK_CHECK_START_URL=https://example.com npm run test:links` to show it works on any website. |
 | 11 | Open `reports/bug-report.html` | The generated results report: one file with run summaries, the bug register, charts, flaky analysis, ML evaluation and every failure with its screenshot. It can be printed or saved as PDF from the browser. Playwright's own report is at `reports/playwright-html/index.html` (`npx playwright show-report reports/playwright-html`). |
 | (optional) | `npm run seed:history`, refresh the overview | Fills the previous 13 days with **simulated** bugs so the 14-day trend chart has a full shape. Say clearly that this is simulated data; these bugs carry a "Simulated" tag. |
@@ -287,6 +320,9 @@ It crawls every page of the same website in a real browser, collects every `<a h
 * SQLite is single-machine.
 * Email alerts need SMTP credentials.
 * Flaky detection needs several runs before it can judge.
+
+**Q13b. How does a manual tester run the automation without any tools?**
+Through the Test Runner web page. It has a suite dropdown, an email box and a Run button. The server starts Playwright with the chosen suite's tag (`--grep @smoke`), the page shows live progress by reading the results the reporter writes to SQLite, and the finished report is shown in the same UI and emailed to the addresses entered. A double-click launcher starts everything, so nobody needs VS Code or a terminal.
 
 **Q14. Future scope?**
 * Larger real-world dataset and comparison with other models (Logistic Regression, SVM, transformer embeddings).

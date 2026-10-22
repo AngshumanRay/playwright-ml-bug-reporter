@@ -2,6 +2,7 @@
   "name": "playwright-ml-bug-reporter",
   "version": "1.0.0",
   "scripts": {
+    "start": "tsx scripts/start.ts",
     "train": "tsx src/ml/train.ts",
     "demo-app": "tsx demo-app/server.ts",
     "test": "playwright test",

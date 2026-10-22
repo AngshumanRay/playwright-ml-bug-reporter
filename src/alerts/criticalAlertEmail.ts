@@ -102,7 +102,11 @@ function buildEmail(runIds: number[], imageSrc: (bug: Bug) => string | null, rep
 }
 
 /** Sends the Critical bug alert for these runs; returns null when no Critical bug was detected. */
-export async function sendCriticalAlert(runIds: number[], options: { reportPath?: string } = {}): Promise<DeliveryResult | null> {
+export async function sendCriticalAlert(runIds: number[], options: { reportPath?: string; exclude?: string[] } = {}): Promise<DeliveryResult | null> {
+  const to = config.alerts.to.filter((e) => !(options.exclude ?? []).includes(e.toLowerCase()));
+  if (options.exclude?.length && !to.length) {
+    return { sent: false, detail: 'Critical bug email skipped: every ALERT_TO address already receives the run report' };
+  }
   const reportAttached = !!options.reportPath && fs.existsSync(options.reportPath);
   const shot = (b: Bug) => {
     const p = b.screenshot_path ? path.join(config.screenshotDir, b.screenshot_path) : null;
@@ -125,6 +129,7 @@ export async function sendCriticalAlert(runIds: number[], options: { reportPath?
     html: email.html,
     previewHtml: preview.html,
     attachments,
+    to,
     previewFile: `critical-alert-run-${email.runs[email.runs.length - 1]?.id ?? 0}.html`,
     label: `Critical bug email (${email.critical.length} Critical bug(s))`,
   });

@@ -9,6 +9,7 @@ An end-to-end system that runs automated browser tests with **Playwright**. It d
 * checks every link on every page of a website and reports **broken links**
 * emails an alert with screenshots whenever a **Critical** bug is detected
 * shows a **web dashboard** with analytics
+* includes a **Test Runner** web page, so a manual tester can choose a suite (Smoke, Sanity, Regression, Broken links), enter email IDs, press **Run**, and see the report in the same page, without VS Code or any commands
 
 ```
  Playwright tests ──► Failure detected ──► ML severity prediction ──► SQLite ──► Web dashboard
@@ -18,6 +19,14 @@ An end-to-end system that runs automated browser tests with **Playwright**. It d
 ```
 
 > For a step-by-step explanation of how everything works and a demo script, see **[WALKTHROUGH.md](WALKTHROUGH.md)**.
+
+### Quick start for manual testers (no VS Code needed)
+
+1. Install **Node.js** (LTS) once from https://nodejs.org.
+2. Double-click **`Start Test Runner.command`** (Mac) or **`Start Test Runner.bat`** (Windows) in the project folder. The first start installs everything automatically, which takes a few minutes, only once.
+3. The browser opens the **Test Runner** at http://localhost:3000. Choose a suite, type the email ID(s) for the report, press **Run tests**, and watch the results arrive. The full report opens in the same page.
+
+On a Mac, if the file is blocked the first time, right-click it and choose **Open**.
 
 ---
 
@@ -29,10 +38,11 @@ An end-to-end system that runs automated browser tests with **Playwright**. It d
 | 2 | Classify severity (Critical / Major / Minor) with an ML model trained on labelled error messages | [src/ml/](src/ml/): [training-data.csv](src/ml/training-data.csv), [naiveBayes.ts](src/ml/naiveBayes.ts), [train.ts](src/ml/train.ts) |
 | 3 | Store defects and test-run summaries in a central SQLite database | [src/db/database.ts](src/db/database.ts) → `data/bugs.db` |
 | 4 | Web dashboard to view, filter, search and update bug status (Open → In Progress → Resolved) | [src/dashboard/](src/dashboard/) → `/bugs`, `/bugs/:id` |
-| 5 | Charts: bugs per module, severity distribution, 14-day trend | [src/dashboard/public/charts.js](src/dashboard/public/charts.js) → `/` |
+| 5 | Charts: bugs per module, severity distribution, 14-day trend | [src/dashboard/public/charts.js](src/dashboard/public/charts.js) → `/analytics` |
 | 6 | Detect flaky tests that pass and fail inconsistently across runs | [src/flaky/flakyDetector.ts](src/flaky/flakyDetector.ts) → `/flaky` |
 | 7 | Automatic email alert whenever a Critical bug is detected (with screenshots) | [src/alerts/criticalAlertEmail.ts](src/alerts/criticalAlertEmail.ts), [src/alerts/emailNotifier.ts](src/alerts/emailNotifier.ts) |
 | 8 | Complete end-to-end pipeline | [scripts/run-pipeline.ts](scripts/run-pipeline.ts) → `npm run pipeline` |
+| + | Additional: Test Runner UI: run Smoke / Sanity / Regression / Broken links from the browser, enter email IDs, see the report in the same UI, keep a date-named run history | [src/runner/](src/runner/), [src/dashboard/views/runner.ejs](src/dashboard/views/runner.ejs) → `npm start` |
 | + | Additional: crawl a website and report broken links | [src/links/linkCrawler.ts](src/links/linkCrawler.ts), [tests/links.spec.ts](tests/links.spec.ts) → `npm run test:links` |
 
 ---
@@ -81,8 +91,16 @@ playwright-ml-bug-reporter/
 │   ├── links/linkCrawler.ts     Website crawler + HTTP status check of every link
 │   ├── alerts/criticalAlertEmail.ts  Critical bug email: details + screenshot of every Critical bug
 │   ├── alerts/emailNotifier.ts  Sends the email via SMTP, or saves an HTML preview
-│   └── dashboard/               Express web dashboard (server.ts, views/*.ejs, public/*)
+│   ├── alerts/runReportEmail.ts Run report email for the addresses entered in the Test Runner
+│   ├── runner/
+│   │   ├── suites.ts            Smoke / Sanity / Regression / Broken links (Playwright tags)
+│   │   ├── runManager.ts        Starts / stops Playwright from the UI, live log, report + email at the end
+│   │   └── runReport.ts         Run report data, date-prefixed names, self-contained HTML report
+│   └── dashboard/               Express web dashboard + Test Runner (server.ts, views/*.ejs, public/*)
+├── Start Test Runner.command    Double-click launcher (Mac)
+├── Start Test Runner.bat        Double-click launcher (Windows)
 ├── scripts/
+│   ├── start.ts                 npm start: trains the model if needed, starts the UI, opens the browser
 │   ├── run-pipeline.ts          Full end-to-end pipeline
 │   ├── generate-report.ts       Self-contained HTML results report
 │   ├── seed-history.ts          OPTIONAL simulated 13-day history (for the trend chart demo)
@@ -92,6 +110,7 @@ playwright-ml-bug-reporter/
 ├── reports/alerts/              Email alert previews (when SMTP is not configured)
 ├── reports/bug-report.html      Results report: runs, bugs, charts, flaky analysis, ML metrics, screenshots
 ├── reports/playwright-html/     Playwright's built-in HTML test report (last run)
+├── reports/runs/                One self-contained HTML report per Test Runner run, named with its date first
 ├── playwright.config.ts         Playwright configuration (registers the custom reporter)
 ├── .env.example                 Template for email / port settings
 ├── presentation/              Project presentation (PowerPoint)
@@ -117,7 +136,15 @@ cp .env.example .env               # optional: only needed for real email alerts
 
 ## 5. How to run
 
-### One command: complete pipeline (recommended for the demo)
+### From the browser: Test Runner (recommended for manual testers)
+
+```bash
+npm start               # or double-click "Start Test Runner" - opens http://localhost:3000
+```
+
+See section 13 for how the Test Runner works.
+
+### One command: complete pipeline
 
 ```bash
 npm run pipeline        # trains the model if needed, runs the test suite 5 times, detects flaky tests,
@@ -135,7 +162,8 @@ npm run dashboard       # open http://localhost:3000
 | `npm run test:links` | Only the broken link checker (see section 12) |
 | `npm run pipeline` | Full pipeline. Options: `-- --runs=10`, `-- --retrain`, `-- --dashboard` |
 | `npm run flaky` | Prints the flaky-test report in the terminal |
-| `npm run dashboard` | Starts the web dashboard at http://localhost:3000 |
+| `npm start` | Starts the Test Runner and dashboard and opens http://localhost:3000 in the browser |
+| `npm run dashboard` | Same server, without opening the browser |
 | `npm run report` | Writes the results report `reports/bug-report.html` (also generated automatically at the end of `npm run pipeline`) |
 | `npm run demo-app` | Starts only the ShopEase demo app at http://localhost:4000 (to explore it manually) |
 | `npm run seed:history` | OPTIONAL: adds **simulated** bugs for the previous 13 days so the 14-day trend chart has data |
@@ -235,8 +263,8 @@ On the real Playwright failures from the demo app, the model classifies **all 13
 
 | Table | Purpose | Main columns |
 |---|---|---|
-| `test_runs` | One row per Playwright execution (run summary) | started_at, finished_at, status, total, passed, failed, skipped, duration_ms, new_bugs |
-| `test_results` | One row per test per run (history for flaky detection) | run_id, test_key, title, module, status, duration_ms, error_message, executed_at |
+| `test_runs` | One row per Playwright execution (run summary) | started_at, finished_at, status, total, passed, failed, skipped, duration_ms, new_bugs, suite, trigger_source, recipients, email_mode, email_status, planned_total, report_file |
+| `test_results` | One row per test per run (history for flaky detection) | run_id, test_key, title, module, status, duration_ms, error_message, screenshot_path, executed_at |
 | `bugs` | One row per unique defect | test_key, module, error_message, error_stack, screenshot_path, severity, confidence, status, occurrences, alert_sent, created_at, last_seen_at |
 | `bug_history` | Every status change (audit trail / traceability) | bug_id, old_status, new_status, changed_at |
 | `bug_occurrences` | Every run in which a bug was seen (used by the Critical bug email) | bug_id, run_id, seen_at |
@@ -249,11 +277,13 @@ On the real Playwright failures from the demo app, the model classifies **all 13
 
 | Page | Contents |
 |---|---|
-| **Overview** `/` | KPI cards (total, open, unresolved Critical, flaky tests, runs), bar chart of bugs per module, severity distribution chart, 14-day stacked trend chart, latest runs. Each chart has a "View data table" option |
+| **Test Runner** `/` | Suite dropdown, email ID(s) box, **Run** button, live progress with each test's result, Stop button, recent runs (see section 13) |
+| **Run History** `/runs` | Every run grouped by day, named with its date first (`2026-10-22 14:29 · Smoke · Run #10`), filter by suite |
+| **Run report** `/runs/:id` | Pass rate, results by module, bugs by severity, every test with its error and screenshot, bugs found, email status, **Download report** and **Run again** |
+| **Analytics** `/analytics` | KPI cards (total, open, unresolved Critical, flaky tests, runs), bar chart of bugs per module, severity distribution chart, 14-day stacked trend chart, latest runs. Each chart has a "View data table" option |
 | **Bugs** `/bugs` | All bugs with filters (severity, status, module), text search (bug ID, test name or error text) and one-click status buttons (→ In Progress, → Resolved) |
 | **Bug details** `/bugs/:id` | Full error message, stack trace, failure screenshot, ML prediction with confidence, test stability history, status update, status history |
 | **Flaky Tests** `/flaky` | Flaky tests with failure rate, flip rate and pass/fail history; stability verdict for every test |
-| **Test Runs** `/runs` | Summary of every run (passed, failed, pass rate, new bugs, duration) |
 
 The dashboard supports light and dark mode (it follows the operating-system setting) and works on mobile screens.
 
@@ -301,7 +331,51 @@ LINK_CHECK_START_URL=https://your-website.com npm run test:links
 
 ---
 
-## 13. Troubleshooting
+## 13. Test Runner (UI for manual testers)
+
+The Test Runner lets anyone run the automated tests from the browser, with no VS Code and no commands.
+
+**Using it**
+
+1. Start it: double-click `Start Test Runner.command` (Mac) or `Start Test Runner.bat` (Windows), or run `npm start`. The browser opens http://localhost:3000.
+2. **Test suite** dropdown: choose the suite (the number of tests is shown next to each).
+3. **Email ID(s)**: type an address and press Enter; add as many as needed. Invalid addresses turn red. The last addresses are remembered.
+4. **Send the report email**: *After every run* or *Only if a Critical bug is found*.
+5. Press **Run tests**. A progress bar, passed/failed counters, the elapsed time and each test's result appear live; the Playwright log is one click away. **Stop** ends the run early.
+6. When the run finishes: **Open full report**, **Download**, and the email status are shown. The run appears under **Recent runs** and in **Run History**.
+
+**Suites** (defined in [src/runner/suites.ts](src/runner/suites.ts); a test joins a suite with a Playwright tag, e.g. `test('...', { tag: ['@smoke', '@sanity'] }, ...)`)
+
+| Suite | Tests | What it covers |
+|---|---|---|
+| Smoke | 5 | Quick health check of the most important user journeys (`@smoke`) |
+| Sanity | 11 | Core functionality of every module (`@sanity`) |
+| Regression | 17 | Every test, including the broken link check |
+| Broken links | 1 | Crawl the whole website and report every broken link (`@Links`) |
+
+**The report** opens in the same UI at `/runs/<id>`:
+* a header with the date-prefixed run name, status, suite, duration and email status
+* a pass-rate ring and the totals
+* results by module and bugs by severity, with a Critical callout
+* every test grouped by module; click a failed test to see its error and screenshot, and click a screenshot to enlarge it
+* bug cards with screenshots
+
+**Download report** saves the same report as one self-contained HTML file. A copy of every run's report is also kept in `reports/runs/`, named with the date first, e.g. `2026-10-22_1429_smoke_run-10.html`.
+
+**Emails.** When the run ends, the addresses entered in the UI receive the **run report email**:
+* the result and the numbers
+* the Critical bugs
+* every failed test with its ML severity and a screenshot inside the email
+* an **Open the full report** button
+* the full report attached
+
+The Critical bug alert (section 6) still goes to `ALERT_TO` from `.env`, except to addresses that already receive the run report. Set `DASHBOARD_URL` in `.env` to this computer's network address (e.g. `http://192.168.1.20:3000`) so the email button works for colleagues.
+
+Only one run can run at a time; starting a second one shows a message instead.
+
+---
+
+## 14. Troubleshooting
 
 | Problem | Solution |
 |---|---|
@@ -313,4 +387,6 @@ LINK_CHECK_START_URL=https://your-website.com npm run test:links
 | Email not received | Check `ALERTS_ENABLED=true`, use a Gmail **App Password**, check the terminal message after the run |
 | `better-sqlite3` build error after a Node upgrade | `npm rebuild better-sqlite3` |
 | Want a clean start | `npm run db:reset` |
+| "Start Test Runner" does nothing on Mac | Right-click it → **Open** (first time only), or run `npm start` in a terminal |
+| Run History / report links in emails don't open for colleagues | Set `DASHBOARD_URL` in `.env` to this computer's network address and keep the Test Runner running |
 | Link checker reports external links as broken | Some sites block automated requests; set `LINK_CHECK_EXTERNAL=false` to check only your own site's links |

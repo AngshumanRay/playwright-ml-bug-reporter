@@ -1,0 +1,43 @@
+<%- include('partials/header') %>
+<% const dayLabel = (d) => new Date(d + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }); %>
+<div class="page-head">
+  <div>
+    <div class="eyebrow">Run History</div>
+    <h1>Every test run</h1>
+    <p class="subtitle">Each run is named with its date and time first. Open one to see its full report.</p>
+  </div>
+  <a class="btn" href="/"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.14v13.72a1 1 0 0 0 1.52.85l10.6-6.86a1 1 0 0 0 0-1.7L9.52 4.29A1 1 0 0 0 8 5.14z"/></svg>New run</a>
+</div>
+
+<div class="chips-row" style="margin-bottom:6px">
+  <a class="filter-chip <%= !suite ? 'active' : '' %>" href="/runs">All</a>
+  <% suites.forEach(s => { %><a class="filter-chip <%= suite === s.id ? 'active' : '' %>" href="/runs?suite=<%= s.id %>"><%= s.name %></a><% }) %>
+  <a class="filter-chip <%= suite === 'cli' ? 'active' : '' %>" href="/runs?suite=cli">Command line</a>
+</div>
+
+<% if (!days.length) { %>
+  <div class="card empty" style="margin-top:20px">No runs here yet. <a href="/">Start one from the Test Runner</a>.</div>
+<% } %>
+
+<% days.forEach(day => { %>
+  <section class="day">
+    <div class="day-head"><h2><%= dayLabel(day.date) %></h2><span class="muted"><%= day.date %> · <%= day.runs.length %> run(s)</span></div>
+    <div class="card history-card">
+      <% day.runs.forEach(r => { const p = r.total ? (r.passed / r.total) * 100 : 0, f = r.total ? (r.failed / r.total) * 100 : 0; %>
+        <a class="history-row" href="/runs/<%= r.id %>">
+          <span class="time"><%= r.time %></span>
+          <span style="min-width:0">
+            <span class="name"><%= r.date %> <%= r.time %> · <%= r.suite %> · Run #<%= r.id %></span>
+            <span class="sub"><%= r.trigger === 'dashboard' ? 'Test Runner' : r.trigger === 'pipeline' ? 'Pipeline' : 'Command line' %> · <%= r.duration %></span>
+          </span>
+          <span class="hide-sm"><span class="result-bar"><span class="p" style="width:<%= p %>%"></span><span class="f" style="width:<%= f %>%"></span></span>
+            <span class="sub"><%= r.passed %> passed · <%= r.failed %> failed</span></span>
+          <span class="right hide-sm"><%= r.newBugs %> new <%= r.newBugs === 1 ? 'bug' : 'bugs' %></span>
+          <span class="right hide-sm"><%= r.total %> tests</span>
+          <span class="right"><span class="pill run-<%= r.status %>"><%= r.status === 'running' ? 'Running' : r.status === 'passed' ? 'Passed' : r.status === 'stopped' ? 'Stopped' : 'Failed' %></span></span>
+        </a>
+      <% }) %>
+    </div>
+  </section>
+<% }) %>
+<%- include('partials/footer') %>

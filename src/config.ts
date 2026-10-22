@@ -22,6 +22,9 @@ export const config = {
   // Servers
   demoAppPort: Number(env.DEMO_APP_PORT ?? 4000),
   dashboardPort: Number(env.DASHBOARD_PORT ?? 3000),
+  // Address used in email links to the dashboard (use the machine's IP so others can open reports)
+  dashboardUrl: env.DASHBOARD_URL ?? `http://localhost:${Number(env.DASHBOARD_PORT ?? 3000)}`,
+  runReportDir: path.join(ROOT_DIR, 'reports', 'runs'),
 
   // Email alerts
   alerts: {
