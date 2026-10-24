@@ -35,4 +35,4 @@ if (!process.env.NO_BROWSER) {
   const opener = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start ""' : 'xdg-open';
   setTimeout(() => exec(`${opener} ${url}`), 1200);
 }
-console.log(`\n  Test Runner is ready:      ${url}\n  ShopEase (site under test): http://localhost:${config.demoAppPort}   (login: student / Password@123)\n  Keep this window open while you use them. Press Ctrl+C to stop.\n`);
+console.log(`\n  Test Runner is ready:      ${url}\n  ShopEase (site under test): http://localhost:${config.demoAppPort}\n  Keep this window open while you use them. Press Ctrl+C to stop.\n`);
