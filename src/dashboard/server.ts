@@ -6,14 +6,14 @@
  *   /                  Test Runner: choose a suite, enter email ID(s), Run; live progress
  *   /runs              run history, every run named with its date first
  *   /runs/:id          run report (also downloadable as one HTML file)
- *   /analytics         KPI cards + charts (bugs per module, severity distribution, 14-day trend)
+ *   /analytics         key numbers, bugs per module, bugs by severity, 14-day trend
  *   /bugs, /bugs/:id   bug list (filter, search, status update) and bug details
  *   /flaky             flaky test detection across runs
  */
 import { exec } from 'node:child_process';
 import path from 'node:path';
 import express from 'express';
-import { config, BUG_STATUSES, SEVERITIES, BugStatus, ROOT_DIR } from '../config';
+import { config, BUG_STATUSES, SEVERITIES, BugStatus, ROOT_DIR, reloadEmailSettings } from '../config';
 import {
   bugTrend, bugsPerModule, getBug, getBugHistory, getRun, listBugs, listModules, listRuns,
   overviewCounts, resultsForRun, severityDistribution, updateBugStatus,
@@ -21,7 +21,7 @@ import {
 import { analyzeTestStability } from '../flaky/flakyDetector';
 import { isEmailConfigured } from '../alerts/emailNotifier';
 import { SUITES, suiteLabel } from '../runner/suites';
-import { EmailMode, activeRunId, parseRecipients, runLog, startRun, stopRun } from '../runner/runManager';
+import { EmailMode, activeRunId, parseRecipients, rerunFailed, runLog, startRun, stopRun } from '../runner/runManager';
 import { getRunReport, renderStandaloneReport, runName, formatDuration } from '../runner/runReport';
 
 const app = express();
@@ -57,7 +57,8 @@ const runSummary = (r: ReturnType<typeof listRuns>[number]) => ({
   name: runName(r),
   date: r.started_at.slice(0, 10),
   time: r.started_at.slice(11, 16),
-  suite: suiteLabel(r.suite),
+  suite: suiteLabel(r.suite) + (r.rerun_of ? ' (re-run)' : ''),
+  rerunOf: r.rerun_of,
   status: r.status,
   total: r.total,
   passed: r.passed,
@@ -68,24 +69,26 @@ const runSummary = (r: ReturnType<typeof listRuns>[number]) => ({
 });
 
 app.get('/', (_req, res) => {
+  reloadEmailSettings(); // pick up a sending account added to .env without a restart
   res.render('runner', {
     title: 'Test Runner',
     suites: SUITES.map((s) => ({ ...s, count: suiteCounts[s.id] })),
     emailConfigured: isEmailConfigured(),
+    emailEnabled: config.alerts.enabled,
     emailFrom: config.alerts.from,
     recent: listRuns(8).map(runSummary),
   });
 });
 
 app.post('/api/runs', (req, res) => {
-  const { suite, emails = '', emailMode = 'always' } = req.body ?? {};
+  const { suite, emails = '', emailMode = 'critical', headed = true } = req.body ?? {};
   const { valid, invalid } = parseRecipients(String(emails));
   if (invalid.length) {
     res.status(400).json({ error: `Not a valid email address: ${invalid.join(', ')}` });
     return;
   }
   try {
-    const runId = startRun(String(suite), valid, emailMode === 'critical' ? 'critical' : ('always' as EmailMode));
+    const runId = startRun(String(suite), valid, emailMode === 'always' ? 'always' : ('critical' as EmailMode), { headed: headed !== false && headed !== 'false' });
     res.json({ runId });
   } catch (err) {
     res.status(409).json({ error: (err as Error).message });
@@ -129,6 +132,16 @@ app.post('/api/runs/:id/stop', (req, res) => {
   res.json({ stopped: stopRun(Number(req.params.id)) });
 });
 
+// Re-run only the tests that failed in this run (same suite and email recipients)
+app.post('/api/runs/:id/rerun-failed', (req, res) => {
+  try {
+    const resultId = req.body?.resultId ? Number(req.body.resultId) : undefined;
+    res.json({ runId: rerunFailed(Number(req.params.id), resultId) });
+  } catch (err) {
+    res.status(409).json({ error: (err as Error).message });
+  }
+});
+
 // ------------------------------------------------------------------ run history and reports
 
 app.get('/runs', (req, res) => {
@@ -169,12 +182,14 @@ app.get('/analytics', (_req, res) => {
     severity: s,
     count: severityDistribution().find((d) => d.severity === s)?.count ?? 0,
   }));
-  res.render('overview', {
+  res.render('analytics', {
     title: 'Analytics',
     counts: overviewCounts(),
     flakyCount: stability.filter((s) => s.verdict === 'Flaky').length,
-    analytics: { perModule: bugsPerModule(), severity, trend: bugTrend(14) },
-    runs: listRuns(5),
+    perModule: bugsPerModule(),
+    severity,
+    trend: bugTrend(14),
+    lastRun: listRuns(20).find((r) => r.status !== 'running' && r.total > 0),
   });
 });
 

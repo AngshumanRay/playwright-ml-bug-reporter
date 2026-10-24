@@ -13,7 +13,7 @@ An end-to-end system that runs automated browser tests with **Playwright**. It d
 
 ```
  Playwright tests ──► Failure detected ──► ML severity prediction ──► SQLite ──► Web dashboard
-  (tests/*.spec.ts)    (custom reporter)     (Naive Bayes model)       (bugs.db)   (Express + Chart.js)
+  (tests/*.spec.ts)    (custom reporter)     (Naive Bayes model)       (bugs.db)   (Express + EJS)     
                                                     │
                                                     └──► Critical? ──► Email alert
 ```
@@ -24,9 +24,20 @@ An end-to-end system that runs automated browser tests with **Playwright**. It d
 
 1. Install **Node.js** (LTS) once from https://nodejs.org.
 2. Double-click **`Start Test Runner.command`** (Mac) or **`Start Test Runner.bat`** (Windows) in the project folder. The first start installs everything automatically, which takes a few minutes, only once.
-3. The browser opens the **Test Runner** at http://localhost:3000. Choose a suite, type the email ID(s) for the report, press **Run tests**, and watch the results arrive. The full report opens in the same page.
+3. The browser opens the **Test Runner** at http://localhost:3000. Nothing runs until you choose a suite and press **Run tests**. A browser window then opens (headed mode), and you can watch the tests while the results arrive. The full report opens in the same page.
 
-On a Mac, if the file is blocked the first time, right-click it and choose **Open**.
+Notes:
+* **Keep the small black window open** while you use the Test Runner; closing it stops it. Next time, just double-click the same file again.
+* `http://localhost:3000` only opens **after** the launcher has been started on that computer.
+* **First start blocked?**
+  * **Mac:** if the file is blocked, right-click it → **Open**. If you get "you don't have the right access privileges", run `chmod +x "Start Test Runner.command"` in Terminal once.
+  * **Windows:** if "Windows protected your PC" appears, click **More info → Run anyway**.
+
+### Testing the website manually
+
+The website under test is **ShopEase**, a demo shop included in this project, at **http://localhost:4000** (login `student` / `Password@123`). It runs automatically during tests; to explore it by hand, run `npm run demo-app` and open http://localhost:4000. Section 7 lists every page and the bugs to look for.
+
+`localhost` only works on the computer where it runs. Colleagues on the same network can use that computer's address instead, e.g. `http://192.168.1.20:4000` (website) or `http://192.168.1.20:3000` (Test Runner).
 
 ---
 
@@ -38,7 +49,7 @@ On a Mac, if the file is blocked the first time, right-click it and choose **Ope
 | 2 | Classify severity (Critical / Major / Minor) with an ML model trained on labelled error messages | [src/ml/](src/ml/): [training-data.csv](src/ml/training-data.csv), [naiveBayes.ts](src/ml/naiveBayes.ts), [train.ts](src/ml/train.ts) |
 | 3 | Store defects and test-run summaries in a central SQLite database | [src/db/database.ts](src/db/database.ts) → `data/bugs.db` |
 | 4 | Web dashboard to view, filter, search and update bug status (Open → In Progress → Resolved) | [src/dashboard/](src/dashboard/) → `/bugs`, `/bugs/:id` |
-| 5 | Charts: bugs per module, severity distribution, 14-day trend | [src/dashboard/public/charts.js](src/dashboard/public/charts.js) → `/analytics` |
+| 5 | Charts: bugs per module, severity distribution, 14-day trend | [src/dashboard/views/analytics.ejs](src/dashboard/views/analytics.ejs) → `/analytics` |
 | 6 | Detect flaky tests that pass and fail inconsistently across runs | [src/flaky/flakyDetector.ts](src/flaky/flakyDetector.ts) → `/flaky` |
 | 7 | Automatic email alert whenever a Critical bug is detected (with screenshots) | [src/alerts/criticalAlertEmail.ts](src/alerts/criticalAlertEmail.ts), [src/alerts/emailNotifier.ts](src/alerts/emailNotifier.ts) |
 | 8 | Complete end-to-end pipeline | [scripts/run-pipeline.ts](scripts/run-pipeline.ts) → `npm run pipeline` |
@@ -56,7 +67,7 @@ On a Mac, if the file is blocked the first time, right-click it and choose **Ope
 | Test automation | Playwright Test (`@playwright/test`) | **1.64.1 (latest)** |
 | Machine learning | Multinomial Naive Bayes, implemented from scratch in TypeScript | — |
 | Database | SQLite via `better-sqlite3` | better-sqlite3 13 (SQLite 3.53) |
-| Web dashboard | Express + EJS templates + Chart.js | Express 5.3, EJS 7, Chart.js 4.5.1 |
+| Web dashboard | Express + EJS templates, charts drawn in plain HTML/CSS | Express 5.3, EJS 7 |
 | Email | Nodemailer (SMTP) | 10.1 |
 | Configuration | dotenv (`.env` file) | 18 |
 
@@ -185,9 +196,14 @@ The email contains:
 
 `npm test` sends this email when the run ends. `npm run pipeline` runs the suite several times, so it sends **one** email at the end covering all its runs, with the full HTML report attached.
 
-By default (`ALERTS_ENABLED=false`) nothing is emailed. The email is saved as `reports/alerts/critical-alert-run-<run>.html` instead, so the feature can be shown without an email account.
+By default nothing is emailed: until an email account is set up, every email is saved as a file in `reports/alerts/` instead (e.g. `critical-alert-run-<run>.html`). The Test Runner warns about this in red as soon as you enter an email address.
 
-To send real emails, edit `.env`:
+### Setting up the sending account (one time)
+
+Testers only type the **recipient** addresses in the Test Runner. Every email is sent **from** one email account, which is set once in the `.env` file by whoever installs the project. Gmail and other providers only accept email from a logged-in account, so this step is required.
+
+1. Create a Gmail **App Password**: Google Account → Security → turn on 2-Step Verification → https://myaccount.google.com/apppasswords → Create → copy the 16 letters.
+2. Copy `.env.example` to `.env` (in the project folder) and fill in:
 
 ```ini
 ALERTS_ENABLED=true
@@ -199,7 +215,9 @@ ALERT_FROM=your_email@gmail.com
 ALERT_TO=guide@example.com,team@example.com
 ```
 
-For Gmail, turn on 2-Step Verification and create an **App Password** (Google Account → Security → App passwords). Your normal Gmail password will not work.
+3. Save the file. That's all: it is read again before every email, so no restart is needed. From now on, the addresses typed in the Test Runner receive the reports. `ALERT_TO` is optional; it lists people who always get the Critical bug alerts.
+
+Your normal Gmail password will not work; it must be an App Password. `.env` stays on this computer and is never uploaded to GitHub.
 
 If sending fails (wrong password, no internet), the test run still completes, and the terminal shows the error, e.g. `Critical bug email (4 Critical bug(s)) FAILED: Invalid login`.
 
@@ -207,7 +225,21 @@ If sending fails (wrong password, no internet), the test run still completes, an
 
 ## 7. The application under test (ShopEase) and its seeded defects
 
-`demo-app/` is a small web shop built for this project. Defects were **deliberately seeded** into it, so the pipeline has realistic failures to detect.
+`demo-app/` is a small web shop built for this project, at **http://localhost:4000** (start it on its own with `npm run demo-app`; login `student` / `Password@123`). Defects were **deliberately seeded** into it, so the pipeline has realistic failures to detect.
+
+**Manual check of every seeded defect:**
+
+| Page | URL | What to do | What you will see |
+|---|---|---|---|
+| Login | /login.html | Username `O'Brien`, any password | Database error (Critical) |
+| Products / Search | /products.html | Search `laptop` vs `LAPTOP`; read the heading | Uppercase finds nothing (Major); "Avaliable Products" (Minor) |
+| Cart | /cart.html | Add Wireless Mouse, set quantity 2 | Total $58.00 instead of $59.98 (Major) |
+| Checkout | /checkout.html | Fill all fields, Place Order | "500 Internal Server Error: Payment gateway crashed" (Critical) |
+| Profile | /profile.html | Look at the form | Label "Adress", grey Save button (Minor) |
+| Order history | /orders.html | Open the page | Empty table: the page crashed (Critical) |
+| Footer (every page) | Help Center · Terms and Conditions · Spec sheet (PDF) on Laptop Pro 14 | Click them | 500 error (Critical) · Not Found (Major) · Not Found (Major) |
+
+**Automated tests and the defect each one finds:**
 
 | Module | Test | Seeded defect | Expected ML severity |
 |---|---|---|---|
@@ -280,7 +312,7 @@ On the real Playwright failures from the demo app, the model classifies **all 13
 | **Test Runner** `/` | Suite dropdown, email ID(s) box, **Run** button, live progress with each test's result, Stop button, recent runs (see section 13) |
 | **Run History** `/runs` | Every run grouped by day, named with its date first (`2026-10-22 14:29 · Smoke · Run #10`), filter by suite |
 | **Run report** `/runs/:id` | Pass rate, results by module, bugs by severity, every test with its error and screenshot, bugs found, email status, **Download report** and **Run again** |
-| **Analytics** `/analytics` | KPI cards (total, open, unresolved Critical, flaky tests, runs), bar chart of bugs per module, severity distribution chart, 14-day stacked trend chart, latest runs. Each chart has a "View data table" option |
+| **Analytics** `/analytics` | Four key numbers (open bugs, unresolved Critical bugs, pass rate of the last run, flaky tests), bugs per module, bugs by severity, and new bugs per day for the last 14 days by severity. Every number and bar opens the matching bug list |
 | **Bugs** `/bugs` | All bugs with filters (severity, status, module), text search (bug ID, test name or error text) and one-click status buttons (→ In Progress, → Resolved) |
 | **Bug details** `/bugs/:id` | Full error message, stack trace, failure screenshot, ML prediction with confidence, test stability history, status update, status history |
 | **Flaky Tests** `/flaky` | Flaky tests with failure rate, flip rate and pass/fail history; stability verdict for every test |
@@ -340,9 +372,11 @@ The Test Runner lets anyone run the automated tests from the browser, with no VS
 1. Start it: double-click `Start Test Runner.command` (Mac) or `Start Test Runner.bat` (Windows), or run `npm start`. The browser opens http://localhost:3000.
 2. **Test suite** dropdown: choose the suite (the number of tests is shown next to each).
 3. **Email ID(s)**: type an address and press Enter; add as many as needed. Invalid addresses turn red. The last addresses are remembered.
-4. **Send the report email**: *After every run* or *Only if a Critical bug is found*.
-5. Press **Run tests**. A progress bar, passed/failed counters, the elapsed time and each test's result appear live; the Playwright log is one click away. **Stop** ends the run early.
-6. When the run finishes: **Open full report**, **Download**, and the email status are shown. The run appears under **Recent runs** and in **Run History**.
+4. **Send the report email**: *Only if a Critical bug is found* (the default: the email goes out automatically as soon as a run finds a Critical bug) or *After every run*.
+5. **Show the browser while testing** (on by default): the tests run in **headed mode**. A browser window opens and the tests run one at a time, so you can watch them. Switch it off for a faster run in the background.
+6. Press **Run tests**. A progress bar, passed/failed counters, the elapsed time and each test's result appear live; the Playwright log is one click away. **Stop** ends the run early.
+7. When the run finishes: **Open full report**, **Re-run failed tests**, **Download**, and the email status are shown. If the email could not be sent, the status says **NOT SENT** in red, with the reason.
+8. **Re-run failed tests (N)** on the finished panel or on any report runs **only the tests that failed** in that run. On a report, each failed test also has its own **Re-run** button that runs just that one test, with the same suite and email addresses. The re-run is named e.g. `2026-10-24 12:06 · Smoke (re-run of #16) · Run #17`. The run appears under **Recent runs** and in **Run History**.
 
 **Suites** (defined in [src/runner/suites.ts](src/runner/suites.ts); a test joins a suite with a Playwright tag, e.g. `test('...', { tag: ['@smoke', '@sanity'] }, ...)`)
 
@@ -373,6 +407,8 @@ The Critical bug alert (section 6) still goes to `ALERT_TO` from `.env`, except 
 
 Only one run can run at a time; starting a second one shows a message instead.
 
+**Emails not arriving?** If the Test Runner shows a red warning or **NOT SENT**, the sending account in `.env` is missing or wrong (section 6). The report page and the black terminal window show the exact reason.
+
 ---
 
 ## 14. Troubleshooting
@@ -384,7 +420,7 @@ Only one run can run at a time; starting a second one shows a message instead.
 | Port 3000 or 4000 already in use | Change `DASHBOARD_PORT` / `DEMO_APP_PORT` in `.env` |
 | No flaky tests shown | Flaky detection needs at least 3 runs: `npm run pipeline` |
 | 14-day trend shows only today | Expected on a fresh install. Run tests on different days, or use `npm run seed:history` for a demo |
-| Email not received | Check `ALERTS_ENABLED=true`, use a Gmail **App Password**, check the terminal message after the run |
+| Email not received | Add the sending Gmail address and its **App Password** to `.env` (section 6). The run's email status on its report shows the exact reason. Also check the spam folder |
 | `better-sqlite3` build error after a Node upgrade | `npm rebuild better-sqlite3` |
 | Want a clean start | `npm run db:reset` |
 | "Start Test Runner" does nothing on Mac | Right-click it → **Open** (first time only), or run `npm start` in a terminal |

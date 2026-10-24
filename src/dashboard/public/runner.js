@@ -19,14 +19,20 @@
     $('suite-count').textContent = opt.dataset.count ? `${opt.dataset.count} tests` : 'all tests';
   }
   suite.addEventListener('change', () => { showSuite(); store.set('runner.suite', suite.value); });
+  const headed = $('headed');
+  if (store.get('runner.headed') === 'no') headed.checked = false;
+  headed.addEventListener('change', () => store.set('runner.headed', headed.checked ? 'yes' : 'no'));
   showSuite();
 
   // ---------------------------------------------------------------- email chips
   const box = $('email-box');
   const input = $('email-input');
   let emails = (store.get('runner.emails') || '').split(',').filter(Boolean);
+  const emailReady = form_ready();
+  function form_ready() { return document.getElementById('run-form').dataset.emailReady === 'yes'; }
   function renderChips() {
     box.querySelectorAll('.chip').forEach((c) => c.remove());
+    $('email-not-ready').style.display = !emailReady && emails.length ? '' : 'none';
     emails.forEach((e, i) => {
       const chip = document.createElement('span');
       chip.className = 'chip' + (isEmail(e) ? '' : ' invalid');
@@ -74,7 +80,7 @@
       const res = await fetch('/api/runs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ suite: suite.value, emails: emails.join(','), emailMode: form.emailMode.value }),
+        body: JSON.stringify({ suite: suite.value, emails: emails.join(','), emailMode: form.emailMode.value, headed: headed.checked }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Could not start the run');
@@ -144,16 +150,35 @@
     $('stop-btn').style.display = 'none';
     const kind = d.status === 'stopped' ? 'stopped' : d.failed || d.status !== 'passed' ? 'failed' : 'passed';
     const headline = kind === 'stopped' ? 'Run stopped' : kind === 'passed' ? `All ${d.done} tests passed` : `${d.failed} of ${d.done} tests failed`;
+    const notSent = d.emailStatus && /^NOT SENT/.test(d.emailStatus);
     $('done-slot').innerHTML = `
       <div class="done-banner ${kind}">
         <div><div class="big">${esc(headline)}</div>
-          <div class="muted" style="font-size:13px">Finished in ${fmt(d.elapsedMs)}${d.emailStatus ? ` · Email: ${esc(d.emailStatus)}` : ''}</div></div>
+          <div class="muted" style="font-size:13px">Finished in ${fmt(d.elapsedMs)}</div>
+          ${d.emailStatus ? `<div style="font-size:13px;margin-top:2px" class="${notSent ? 'email-warn' : ''}">Email: ${esc(d.emailStatus)}</div>` : ''}</div>
         <div class="actions">
           <a class="btn" href="/runs/${d.id}">Open full report</a>
+          ${d.failed ? `<button type="button" class="ghost" id="rerun-btn">Re-run ${d.failed} failed test${d.failed === 1 ? '' : 's'}</button>` : ''}
           <a class="btn ghost" href="/runs/${d.id}/download">Download</a>
         </div>
       </div>`;
+    const rerun = $('rerun-btn');
+    if (rerun) rerun.addEventListener('click', () => rerunFailed(d.id, rerun));
     refreshRecent();
+  }
+
+  async function rerunFailed(runId, btn) {
+    btn.disabled = true;
+    formError.textContent = '';
+    try {
+      const res = await fetch(`/api/runs/${runId}/rerun-failed`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Could not start the re-run');
+      follow(data.runId);
+    } catch (err) {
+      formError.textContent = err.message;
+      btn.disabled = false;
+    }
   }
 
   async function refreshRecent() {

@@ -1,7 +1,7 @@
 <%- include('partials/header') %>
 <div class="runner-layout">
   <section>
-    <form class="card launch raised" id="run-form" autocomplete="off" novalidate>
+    <form class="card launch raised" id="run-form" autocomplete="off" novalidate data-email-ready="<%= emailConfigured ? 'yes' : 'no' %>">
       <div class="launch-head">
         <div class="eyebrow">Test Runner</div>
         <h1>Run automated tests</h1>
@@ -26,21 +26,27 @@
             <input id="email-input" type="email" inputmode="email" placeholder="name@company.com, press Enter to add more" aria-describedby="email-hint">
           </div>
           <div class="field-hint" id="email-hint">Separate several addresses with Enter, a comma or a space. Leave empty to skip the email.</div>
+          <div class="notice warn" id="email-not-ready" style="display:none;margin-top:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><span class="email-warn">These addresses will not receive anything yet: no sending email account is set up on this computer. Add it once to the <code>.env</code> file (README section 6).</span></div>
         </div>
 
         <div>
           <span class="field-label">Send the report email</span>
           <div class="segmented" role="radiogroup" aria-label="When to send the report email">
-            <label><input type="radio" name="emailMode" value="always" checked><span>After every run</span></label>
-            <label><input type="radio" name="emailMode" value="critical"><span>Only if a Critical bug is found</span></label>
+            <label><input type="radio" name="emailMode" value="critical" checked><span>Only if a Critical bug is found</span></label>
+            <label><input type="radio" name="emailMode" value="always"><span>After every run</span></label>
           </div>
         </div>
 
         <% if (emailConfigured) { %>
           <div class="notice ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z" opacity="0"/><path d="m22 6-10 7L2 6"/><rect x="2" y="4" width="20" height="16" rx="2"/></svg><span>Emails are sent from <b><%= emailFrom %></b>.</span></div>
         <% } else { %>
-          <div class="notice warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><span>Email sending is not set up on this computer yet (see <code>.env</code>). The report email will be saved in <code>reports/alerts/</code> instead; the report is always available here.</span></div>
+          <div class="notice warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><span><b>No sending email account is set up yet</b>, so no emails will be sent. Add the sending Gmail address and App Password to the <code>.env</code> file once (README section 6). The report is always available here.</span></div>
         <% } %>
+
+        <label class="switch-row">
+          <span><b>Show the browser while testing</b><br><span class="muted" style="font-size:13px">Headed mode: a browser window opens and you can watch each test, one at a time</span></span>
+          <span class="switch"><input type="checkbox" id="headed" checked><span></span></span>
+        </label>
 
         <div class="form-error" id="form-error" role="alert"></div>
         <button type="submit" class="run-btn" id="run-btn">

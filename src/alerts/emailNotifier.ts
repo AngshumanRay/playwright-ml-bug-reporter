@@ -1,5 +1,5 @@
 /**
- * Email delivery used by the Critical bug alert (criticalAlertEmail.ts).
+ * Email delivery used by the Critical bug alert and the run report email.
  *
  * - ALERTS_ENABLED=true + SMTP settings in .env -> the email is sent with Nodemailer.
  * - Otherwise the exact same email is saved as an HTML preview in reports/alerts/,
@@ -8,7 +8,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import nodemailer from 'nodemailer';
-import { config } from '../config';
+import { config, reloadEmailSettings } from '../config';
 
 export const escapeHtml = (s: string) =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -22,6 +22,18 @@ export interface EmailAttachment {
 export interface DeliveryResult {
   sent: boolean;
   detail: string;
+}
+
+/** Turns mail-server errors into advice a tester can act on. */
+export function friendlyEmailError(message: string): string {
+  if (/Invalid login|535|Username and Password not accepted|BadCredentials|auth/i.test(message)) {
+    return 'The email account rejected the login. For Gmail, use an App Password (not your normal password) and check the address.';
+  }
+  if (/ECONNREFUSED|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|ECONNRESET|Greeting never received/i.test(message)) {
+    return 'Could not reach the mail server. Check the internet connection and SMTP_HOST / SMTP_PORT in .env.';
+  }
+  if (/certificate|self[- ]signed|SSL|TLS/i.test(message)) return `Secure connection to the mail server failed (${message}). Check the SMTP port: 587 or 465.`;
+  return message;
 }
 
 /** True when .env has everything needed to send real emails. */
@@ -43,6 +55,7 @@ export async function deliverEmail(email: {
   label: string;
   to?: string[]; // default: ALERT_TO from .env
 }): Promise<DeliveryResult> {
+  reloadEmailSettings(); // always use the sending account currently in .env
   const a = config.alerts;
   const to = email.to ?? a.to;
   if (isEmailConfigured() && to.length) {
@@ -62,7 +75,7 @@ export async function deliverEmail(email: {
       });
       return { sent: true, detail: `${email.label} sent to ${to.join(', ')}` };
     } catch (err) {
-      return { sent: false, detail: `${email.label} FAILED: ${(err as Error).message}` };
+      return { sent: false, detail: `${email.label} FAILED: ${friendlyEmailError((err as Error).message)}` };
     }
   }
 

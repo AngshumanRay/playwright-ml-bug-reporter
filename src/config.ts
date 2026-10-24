@@ -5,7 +5,8 @@ import path from 'node:path';
 import dotenv from 'dotenv';
 
 export const ROOT_DIR = path.resolve(__dirname, '..');
-dotenv.config({ path: path.join(ROOT_DIR, '.env'), quiet: true });
+export const ENV_PATH = path.join(ROOT_DIR, '.env');
+dotenv.config({ path: ENV_PATH, quiet: true });
 
 const env = process.env;
 
@@ -27,15 +28,7 @@ export const config = {
   runReportDir: path.join(ROOT_DIR, 'reports', 'runs'),
 
   // Email alerts
-  alerts: {
-    enabled: (env.ALERTS_ENABLED ?? 'false').toLowerCase() === 'true',
-    smtpHost: env.SMTP_HOST ?? 'smtp.gmail.com',
-    smtpPort: Number(env.SMTP_PORT ?? 587),
-    smtpUser: env.SMTP_USER ?? '',
-    smtpPassword: env.SMTP_PASSWORD ?? '',
-    from: env.ALERT_FROM ?? env.SMTP_USER ?? '',
-    to: (env.ALERT_TO ?? '').split(',').map((s) => s.trim()).filter(Boolean),
-  },
+  alerts: emailSettingsFromEnv(),
 
   // Broken link checker: where to start crawling (path on the app under test, or a full URL),
   // how many pages to crawl at most, and whether links to other websites are checked too
@@ -52,6 +45,25 @@ export const config = {
     minRuns: 3,
   },
 };
+
+function emailSettingsFromEnv() {
+  return {
+    enabled: (env.ALERTS_ENABLED ?? 'false').toLowerCase() === 'true',
+    smtpHost: env.SMTP_HOST || 'smtp.gmail.com',
+    smtpPort: Number(env.SMTP_PORT || 587),
+    smtpUser: env.SMTP_USER ?? '',
+    smtpPassword: env.SMTP_PASSWORD ?? '',
+    from: env.ALERT_FROM || env.SMTP_USER || '',
+    to: (env.ALERT_TO ?? '').split(',').map((s) => s.trim()).filter(Boolean),
+  };
+}
+
+/** Re-reads .env (e.g. after the Settings page saved it) so new email settings work without a restart. */
+export function reloadEmailSettings(): void {
+  dotenv.config({ path: ENV_PATH, quiet: true, override: true });
+  Object.assign(config.alerts, emailSettingsFromEnv());
+  config.dashboardUrl = env.DASHBOARD_URL || `http://localhost:${config.dashboardPort}`;
+}
 
 export type Severity = 'Critical' | 'Major' | 'Minor';
 export const SEVERITIES: Severity[] = ['Critical', 'Major', 'Minor'];

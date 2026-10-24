@@ -31,6 +31,8 @@ export interface TestRun {
   email_status: string | null;
   planned_total: number | null;
   report_file: string | null;
+  rerun_of: number | null; // set when this run re-ran the failed tests of another run
+  headed: number | null; // 1 = the browser was visible during the run
 }
 
 export interface TestResultRow {
@@ -44,6 +46,7 @@ export interface TestResultRow {
   duration_ms: number;
   error_message: string | null;
   screenshot_path: string | null;
+  line: number | null; // line of the test in its file (used to re-run exactly this test)
   executed_at: string;
 }
 
@@ -176,7 +179,10 @@ function createSchema(conn: Database.Database): void {
   addColumnIfMissing(conn, 'test_runs', 'email_status', 'TEXT');
   addColumnIfMissing(conn, 'test_runs', 'planned_total', 'INTEGER');
   addColumnIfMissing(conn, 'test_runs', 'report_file', 'TEXT');
+  addColumnIfMissing(conn, 'test_runs', 'rerun_of', 'INTEGER');
+  addColumnIfMissing(conn, 'test_runs', 'headed', 'INTEGER');
   addColumnIfMissing(conn, 'test_results', 'screenshot_path', 'TEXT');
+  addColumnIfMissing(conn, 'test_results', 'line', 'INTEGER');
 }
 
 function addColumnIfMissing(conn: Database.Database, table: string, column: string, type: string): void {
@@ -191,12 +197,14 @@ export interface RunMeta {
   trigger_source?: string | null;
   recipients?: string | null;
   email_mode?: string | null;
+  rerun_of?: number | null;
+  headed?: boolean;
 }
 
 export function createRun(startedAt: string = timestamp(), meta: RunMeta = {}): number {
   const info = getDb()
-    .prepare('INSERT INTO test_runs (started_at, suite, trigger_source, recipients, email_mode) VALUES (?, ?, ?, ?, ?)')
-    .run(startedAt, meta.suite ?? null, meta.trigger_source ?? 'cli', meta.recipients ?? null, meta.email_mode ?? null);
+    .prepare('INSERT INTO test_runs (started_at, suite, trigger_source, recipients, email_mode, rerun_of, headed) VALUES (?, ?, ?, ?, ?, ?, ?)')
+    .run(startedAt, meta.suite ?? null, meta.trigger_source ?? 'cli', meta.recipients ?? null, meta.email_mode ?? null, meta.rerun_of ?? null, meta.headed ? 1 : 0);
   return Number(info.lastInsertRowid);
 }
 
@@ -238,8 +246,8 @@ export function getRuns(ids: number[]): TestRun[] {
 export function insertTestResult(row: Omit<TestResultRow, 'id'>): void {
   getDb()
     .prepare(
-      `INSERT INTO test_results (run_id, test_key, title, module, file, status, duration_ms, error_message, screenshot_path, executed_at)
-       VALUES (@run_id, @test_key, @title, @module, @file, @status, @duration_ms, @error_message, @screenshot_path, @executed_at)`,
+      `INSERT INTO test_results (run_id, test_key, title, module, file, status, duration_ms, error_message, screenshot_path, line, executed_at)
+       VALUES (@run_id, @test_key, @title, @module, @file, @status, @duration_ms, @error_message, @screenshot_path, @line, @executed_at)`,
     )
     .run(row);
 }

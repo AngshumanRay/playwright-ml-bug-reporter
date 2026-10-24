@@ -13,14 +13,14 @@ const SEVERITY_RANK: Record<string, number> = { Critical: 0, Major: 1, Minor: 2 
 const TRIGGER_LABELS: Record<string, string> = { dashboard: 'Test Runner (dashboard)', cli: 'Command line', pipeline: 'Pipeline' };
 
 /** "2026-10-22 13:05 · Smoke · Run #12" - the date prefix keeps runs in order everywhere */
-export function runName(run: Pick<TestRun, 'id' | 'started_at' | 'suite'>): string {
-  return `${run.started_at.slice(0, 16)} · ${suiteLabel(run.suite)} · Run #${run.id}`;
+export function runName(run: Pick<TestRun, 'id' | 'started_at' | 'suite'> & { rerun_of?: number | null }): string {
+  return `${run.started_at.slice(0, 16)} · ${suiteLabel(run.suite)}${run.rerun_of ? ` (re-run of #${run.rerun_of})` : ''} · Run #${run.id}`;
 }
 
 /** "2026-10-22_1305_smoke_run-12" - used for report file names */
-export function runFileSlug(run: Pick<TestRun, 'id' | 'started_at' | 'suite'>): string {
+export function runFileSlug(run: Pick<TestRun, 'id' | 'started_at' | 'suite'> & { rerun_of?: number | null }): string {
   const [date, time] = run.started_at.split(' ');
-  return `${date}_${time.slice(0, 5).replace(':', '')}_${run.suite ?? 'cli'}_run-${run.id}`;
+  return `${date}_${time.slice(0, 5).replace(':', '')}_${run.suite ?? 'cli'}${run.rerun_of ? '_rerun' : ''}_run-${run.id}`;
 }
 
 export function formatDuration(ms: number): string {
@@ -55,7 +55,7 @@ export function getRunReport(runId: number) {
     run,
     name: runName(run),
     slug: runFileSlug(run),
-    suiteName: suiteLabel(run.suite),
+    suiteName: suiteLabel(run.suite) + (run.rerun_of ? ` · failed tests of run #${run.rerun_of}` : ''),
     trigger: TRIGGER_LABELS[run.trigger_source ?? 'cli'] ?? run.trigger_source,
     finished,
     passedRun: finished && failed === 0 && total > 0 && run.status !== 'stopped',

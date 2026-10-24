@@ -95,6 +95,7 @@ class BugReporter implements Reporter {
       duration_ms: result.duration,
       error_message: errorMessage,
       screenshot_path: screenshot,
+      line: test.location.line,
       executed_at: executedAt,
     });
 

@@ -1,0 +1,70 @@
+<%- include('partials/header') %>
+<%
+  const maxModule = Math.max(1, ...perModule.map(m => m.count));
+  const maxSev = Math.max(1, ...severity.map(s => s.count));
+  const maxDay = Math.max(1, ...trend.map(d => d.Critical + d.Major + d.Minor));
+  const trendTotal = trend.reduce((n, d) => n + d.Critical + d.Major + d.Minor, 0);
+%>
+<div class="page-head">
+  <div>
+    <div class="eyebrow">Analytics</div>
+    <h1>Defect analytics</h1>
+    <p class="subtitle">All bugs found by the automated tests, with severity predicted by the ML model.</p>
+  </div>
+</div>
+
+<section class="grid kpis">
+  <a class="card stat kpi-link" href="/bugs?status=Open"><div class="value"><%= counts.openBugs + counts.inProgressBugs %></div><div class="label">Open bugs · <%= counts.totalBugs %> found in total</div></a>
+  <a class="card stat fail kpi-link" href="/bugs?severity=Critical"><div class="value"><%= counts.criticalOpen %></div><div class="label">Critical bugs not yet resolved</div></a>
+  <% if (lastRun) { %>
+    <a class="card stat kpi-link" href="/runs/<%= lastRun.id %>"><div class="value"><%= lastRun.total ? Math.round(lastRun.passed / lastRun.total * 100) : 0 %>%</div><div class="label">Pass rate of the last run (#<%= lastRun.id %>)</div></a>
+  <% } else { %>
+    <div class="card stat"><div class="value">–</div><div class="label">No runs yet</div></div>
+  <% } %>
+  <a class="card stat kpi-link" href="/flaky"><div class="value"><%= flakyCount %></div><div class="label">Flaky tests</div></a>
+</section>
+
+<div class="report-grid">
+  <section class="card">
+    <div class="card-title"><h2>Bugs per module</h2></div>
+    <% if (!perModule.length) { %><div class="empty">No bugs yet.</div><% } %>
+    <div class="sev-bars">
+      <% perModule.forEach(m => { %>
+        <a class="sev-bar plain-bar" href="/bugs?module=<%= encodeURIComponent(m.module) %>" title="<%= m.count %> bug(s) in <%= m.module %>">
+          <span><%= m.module %></span><span class="track"><div style="width:<%= m.count / maxModule * 100 %>%"></div></span><span class="n"><%= m.count %></span>
+        </a>
+      <% }) %>
+    </div>
+  </section>
+  <section class="card">
+    <div class="card-title"><h2>Bugs by severity</h2><span class="muted" style="font-size:13px">predicted by the ML model</span></div>
+    <div class="sev-bars">
+      <% severity.forEach(s => { %>
+        <a class="sev-bar sev-<%= s.severity %>" href="/bugs?severity=<%= s.severity %>" title="<%= s.count %> <%= s.severity %> bug(s)">
+          <span class="pill sev-<%= s.severity %>"><%= s.severity %></span><span class="track"><div style="width:<%= s.count / maxSev * 100 %>%"></div></span><span class="n"><%= s.count %></span>
+        </a>
+      <% }) %>
+    </div>
+  </section>
+</div>
+
+<section class="card">
+  <div class="card-title">
+    <h2>New bugs in the last 14 days</h2>
+    <span class="legend" style="margin:0"><span style="--c: var(--critical)">Critical</span><span style="--c: var(--major)">Major</span><span style="--c: var(--minor)">Minor</span></span>
+  </div>
+  <% if (!trendTotal) { %><div class="empty">No new bugs in the last 14 days.</div><% } else { %>
+  <div class="trend-cols" role="img" aria-label="New bugs per day for the last 14 days, by severity">
+    <% trend.forEach(d => { const total = d.Critical + d.Major + d.Minor; %>
+      <div class="trend-col" title="<%= d.date %>: <%= d.Critical %> Critical, <%= d.Major %> Major, <%= d.Minor %> Minor">
+        <span class="trend-n"><%= total || '' %></span>
+        <span class="trend-stack" style="height:<%= total / maxDay * 100 %>%">
+          <% ['Minor', 'Major', 'Critical'].forEach(s => { if (d[s]) { %><span class="seg-<%= s %>" style="flex:<%= d[s] %>"></span><% } }) %>
+        </span>
+        <span class="trend-day"><%= d.date.slice(8) %>/<%= d.date.slice(5, 7) %></span>
+      </div>
+    <% }) %>
+  </div>
+  <% } %>
+</section>
+<%- include('partials/footer') %>
