@@ -1,0 +1,107 @@
+1
+00:00:00,010 --> 00:00:06,958
+Demo: running automated Playwright tests from the browser, without VS Code
+
+2
+00:00:06,958 --> 00:00:12,169
+This is the Test Runner. It opens automatically when "Start Test Runner" is double-clicked.
+
+3
+00:00:12,169 --> 00:00:15,675
+Step 1: choose a test suite: Smoke, Sanity, Regression or Broken links.
+
+4
+00:00:15,675 --> 00:00:19,870
+Regression runs all 17 tests, including the broken link check.
+
+5
+00:00:19,870 --> 00:00:24,569
+Step 2 (optional): type the email ID(s) that should receive the report.
+
+6
+00:00:24,569 --> 00:00:29,269
+By default the report is emailed only if a Critical bug is found.
+
+7
+00:00:29,269 --> 00:00:35,239
+Headed mode shows a real browser running the tests. For this recording it is switched off.
+
+8
+00:00:35,239 --> 00:00:39,268
+Step 3: press Run tests. Results arrive live, test by test.
+
+9
+00:00:39,268 --> 00:00:45,250
+The progress bar fills in green for passed and red for failed tests.
+
+10
+00:00:45,250 --> 00:00:51,012
+Finished: 11 of 17 tests failed. These are the bugs planted on purpose in the demo shop.
+
+11
+00:00:51,012 --> 00:00:56,227
+The full report opens in the same UI. The run name starts with the date and time.
+
+12
+00:00:56,227 --> 00:01:00,844
+Pass rate and totals at a glance.
+
+13
+00:01:00,844 --> 00:01:08,197
+Results by module, and bug severity predicted by the Machine Learning model. Critical bugs are highlighted.
+
+14
+00:01:08,197 --> 00:01:13,928
+Click a failed test to see its error message and the screenshot taken at the moment of failure.
+
+15
+00:01:13,928 --> 00:01:19,226
+Screenshots open full size: the payment gateway crashed with a 500 error.
+
+16
+00:01:19,226 --> 00:01:28,304
+Every failed test has its own Re-run button. It runs only that one test again.
+
+17
+00:01:28,304 --> 00:01:32,319
+Only the selected test ran again, and the bug is confirmed.
+
+18
+00:01:32,319 --> 00:01:36,833
+Run History keeps every run, grouped by day and named with its date first.
+
+19
+00:01:36,833 --> 00:01:42,596
+Every failure is logged as a bug automatically: no manual bug reporting.
+
+20
+00:01:42,596 --> 00:01:47,809
+Each bug has its error, screenshot, ML severity with confidence, and status history.
+
+21
+00:01:47,809 --> 00:01:52,324
+A tester moves the bug from Open to In Progress to Resolved; every change is recorded.
+
+22
+00:01:52,324 --> 00:01:56,836
+Flaky tests, which pass and fail at random, are detected across runs.
+
+23
+00:01:56,836 --> 00:02:01,850
+Analytics: open bugs, Critical bugs, bugs per module, severity and the 14-day trend.
+
+24
+00:02:01,850 --> 00:02:12,346
+The website under test is ShopEase, a demo shop with bugs planted on purpose.
+
+25
+00:02:12,346 --> 00:02:22,228
+Searching in capitals finds nothing: a Major bug found by the tests.
+
+26
+00:02:22,228 --> 00:02:27,233
+Placing an order fails with a server error: a Critical bug, which also triggers the email alert.
+
+27
+00:02:27,233 --> 00:02:33,237
+To try it: install Node.js, then double-click "Start Test Runner" in the project folder.

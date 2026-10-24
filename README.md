@@ -20,6 +20,8 @@ An end-to-end system that runs automated browser tests with **Playwright**. It d
 
 > For a step-by-step explanation of how everything works and a demo script, see **[WALKTHROUGH.md](WALKTHROUGH.md)**.
 
+> **Demo video (2.5 min, with subtitles):** [demo-video/Test_Runner_Demo.mp4](demo-video/Test_Runner_Demo.mp4). Subtitles are shown in the video and also included as [Test_Runner_Demo.srt](demo-video/Test_Runner_Demo.srt). To download it from GitHub, open the file and click the download button (↓).
+
 ### Quick start for manual testers (no VS Code needed)
 
 1. Install **Node.js** (LTS) once from https://nodejs.org.
@@ -128,6 +130,7 @@ playwright-ml-bug-reporter/
 ├── reports/runs/                One self-contained HTML report per Test Runner run, named with its date first
 ├── playwright.config.ts         Playwright configuration (registers the custom reporter)
 ├── .env.example                 Template for email / port settings
+├── demo-video/                 Demo video of the Test Runner (MP4 with subtitles + .srt file)
 ├── presentation/              Project presentation (PowerPoint)
 ├── README.md
 └── WALKTHROUGH.md
