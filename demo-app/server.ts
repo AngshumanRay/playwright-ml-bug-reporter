@@ -15,7 +15,8 @@
  *             - footer "Terms and Conditions" page does not exist     (broken link, 404)
  *             - "Spec sheet (PDF)" on Laptop Pro 14 does not exist    (broken link, 404)
  *
- * Run standalone:  npm run demo-app   (Playwright also starts it automatically)
+ * Starts together with the Test Runner (npm start), or on its own:  npm run demo-app
+ * (Playwright also starts it automatically for test runs when it is not running)
  */
 import path from 'node:path';
 import express from 'express';
@@ -87,6 +88,11 @@ app.get('/api/orders', (_req, res) => {
   res.json({ data: [{ id: 'ORD-1001', total: 929.99, status: 'Delivered' }] });
 });
 
-app.listen(config.demoAppPort, () => {
+const server = app.listen(config.demoAppPort, () => {
   console.log(`ShopEase demo app running at http://localhost:${config.demoAppPort}`);
+});
+server.on('error', (err: NodeJS.ErrnoException) => {
+  // Already running (e.g. started by the Test Runner): keep using that one
+  if (err.code === 'EADDRINUSE') console.log(`ShopEase is already running at http://localhost:${config.demoAppPort}`);
+  else throw err;
 });

@@ -38,6 +38,7 @@ app.use((req, res, next) => {
   res.locals.SEVERITIES = SEVERITIES;
   res.locals.BUG_STATUSES = BUG_STATUSES;
   res.locals.activeRunId = activeRunId();
+  res.locals.demoAppUrl = `http://${(req.hostname || 'localhost')}:${config.demoAppPort}`;
   next();
 });
 

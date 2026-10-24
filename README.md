@@ -35,7 +35,11 @@ Notes:
 
 ### Testing the website manually
 
-The website under test is **ShopEase**, a demo shop included in this project, at **http://localhost:4000** (login `student` / `Password@123`). It runs automatically during tests; to explore it by hand, run `npm run demo-app` and open http://localhost:4000. Section 7 lists every page and the bugs to look for.
+The website under test is **ShopEase**, a demo shop included in this project, at **http://localhost:4000** (login `student` / `Password@123`). It is not a public website: it runs on your computer.
+
+**To open it:** start the Test Runner (double-click the launcher). ShopEase starts together with it. Then click **ShopEase ↗** in the top bar of the Test Runner, or open http://localhost:4000. It stays available as long as the black window is open. Section 7 lists every page and the bugs to look for.
+
+If http://localhost:4000 does not open, the Test Runner is not running on that computer: double-click the launcher first. Developers can also start only the website with `npm run demo-app`.
 
 `localhost` only works on the computer where it runs. Colleagues on the same network can use that computer's address instead, e.g. `http://192.168.1.20:4000` (website) or `http://192.168.1.20:3000` (Test Runner).
 
@@ -173,7 +177,7 @@ npm run dashboard       # open http://localhost:3000
 | `npm run test:links` | Only the broken link checker (see section 12) |
 | `npm run pipeline` | Full pipeline. Options: `-- --runs=10`, `-- --retrain`, `-- --dashboard` |
 | `npm run flaky` | Prints the flaky-test report in the terminal |
-| `npm start` | Starts the Test Runner and dashboard and opens http://localhost:3000 in the browser |
+| `npm start` | Starts the Test Runner + dashboard (http://localhost:3000) **and the ShopEase website** (http://localhost:4000), and opens the Test Runner in the browser |
 | `npm run dashboard` | Same server, without opening the browser |
 | `npm run report` | Writes the results report `reports/bug-report.html` (also generated automatically at the end of `npm run pipeline`) |
 | `npm run demo-app` | Starts only the ShopEase demo app at http://localhost:4000 (to explore it manually) |
@@ -225,7 +229,7 @@ If sending fails (wrong password, no internet), the test run still completes, an
 
 ## 7. The application under test (ShopEase) and its seeded defects
 
-`demo-app/` is a small web shop built for this project, at **http://localhost:4000** (start it on its own with `npm run demo-app`; login `student` / `Password@123`). Defects were **deliberately seeded** into it, so the pipeline has realistic failures to detect.
+`demo-app/` is a small web shop built for this project, at **http://localhost:4000** (login `student` / `Password@123`). It starts together with the Test Runner (`npm start` / the launcher), or on its own with `npm run demo-app`. Defects were **deliberately seeded** into it, so the pipeline has realistic failures to detect.
 
 **Manual check of every seeded defect:**
 

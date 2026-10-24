@@ -22,6 +22,7 @@
       <a href="<%= href %>" class="<%= (href === '/' ? currentPath === '/' : currentPath.startsWith(href)) ? 'active' : '' %>"><%= label %></a>
     <% }) %>
   </nav>
+  <a class="site-chip" href="<%= demoAppUrl %>/login.html" target="_blank" rel="noopener" title="Open the website under test">ShopEase ↗</a>
   <% if (activeRunId) { %>
     <a class="live-chip" href="/runs/<%= activeRunId %>"><span class="pulse"></span>Run #<%= activeRunId %> in progress</a>
   <% } %>
