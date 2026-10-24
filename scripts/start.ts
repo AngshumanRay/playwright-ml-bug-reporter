@@ -18,6 +18,19 @@ require('../demo-app/server'); // ShopEase, so it can also be tested by hand at 
 require('../src/dashboard/server');
 
 const url = `http://localhost:${config.dashboardPort}`;
+const shopUrl = `http://localhost:${config.demoAppPort}/login.html`;
+
+// Make sure the site on the ShopEase port really is ShopEase (another program may use the port)
+setTimeout(async () => {
+  try {
+    const page = await (await fetch(shopUrl)).text();
+    if (!page.includes('ShopEase')) throw new Error('another program answers on this port');
+    console.log(`  ✓ ShopEase is up:  ${shopUrl}`);
+  } catch (err) {
+    console.log(`\n  ✗ ShopEase could not be opened at ${shopUrl} (${(err as Error).message}).`);
+    console.log(`    Another program may be using port ${config.demoAppPort}. Set DEMO_APP_PORT=4010 in .env and start again.\n`);
+  }
+}, 1500);
 if (!process.env.NO_BROWSER) {
   const opener = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start ""' : 'xdg-open';
   setTimeout(() => exec(`${opener} ${url}`), 1200);

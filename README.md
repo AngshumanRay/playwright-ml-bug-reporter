@@ -419,6 +419,7 @@ Only one run can run at a time; starting a second one shows a message instead.
 
 | Problem | Solution |
 |---|---|
+| ShopEase (http://localhost:4000) or the Test Runner does not open | The black window must be open and show `✓ ShopEase is up`. If it shows a red message, follow it: *Port … already in use* → close the other black window (or set `DASHBOARD_PORT` / `DEMO_APP_PORT` in `.env`); *Installation FAILED* → check the internet connection and double-click again; *Node.js … too old / not installed* → install the LTS from nodejs.org. Use the address on the **same computer** where the black window runs |
 | `Severity model not found` | Run `npm run train` |
 | `Executable doesn't exist` (browser) | Run `npx playwright install chromium` |
 | Port 3000 or 4000 already in use | Change `DASHBOARD_PORT` / `DEMO_APP_PORT` in `.env` |

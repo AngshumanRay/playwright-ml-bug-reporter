@@ -226,6 +226,12 @@ app.get('/flaky', (_req, res) => {
   res.render('flaky', { title: 'Flaky Tests', stability: analyzeTestStability(), windowRuns: config.flaky.windowRuns, minRuns: config.flaky.minRuns });
 });
 
-app.listen(config.dashboardPort, () => {
-  console.log(`Test Runner and dashboard running at http://localhost:${config.dashboardPort}`);
+const server = app.listen(config.dashboardPort, (err?: Error) => {
+  if (!err) console.log(`Test Runner and dashboard running at http://localhost:${config.dashboardPort}`);
+});
+server.on('error', (err: NodeJS.ErrnoException) => {
+  if (err.code !== 'EADDRINUSE') throw err;
+  // Do not crash (that would also stop ShopEase): another Test Runner window is probably open
+  console.log(`\n  Port ${config.dashboardPort} is already in use: the Test Runner is probably already open in another window.`);
+  console.log(`  Close the other black window and start again, or set DASHBOARD_PORT=3001 in .env.\n`);
 });

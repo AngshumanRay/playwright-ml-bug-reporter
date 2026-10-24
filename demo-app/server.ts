@@ -88,8 +88,8 @@ app.get('/api/orders', (_req, res) => {
   res.json({ data: [{ id: 'ORD-1001', total: 929.99, status: 'Delivered' }] });
 });
 
-const server = app.listen(config.demoAppPort, () => {
-  console.log(`ShopEase demo app running at http://localhost:${config.demoAppPort}`);
+const server = app.listen(config.demoAppPort, (err?: Error) => {
+  if (!err) console.log(`ShopEase demo app running at http://localhost:${config.demoAppPort}`);
 });
 server.on('error', (err: NodeJS.ErrnoException) => {
   // Already running (e.g. started by the Test Runner): keep using that one
