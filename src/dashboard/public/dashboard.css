@@ -1,10 +1,10 @@
 /* =====================================================================
-   Automated Bug Reporting - design system
-   Tokens first (light + dark), then base, layout, components, pages.
+   Automated Bug Reporting - design system (white theme)
+   Tokens first, then base, layout, components, pages.
    ===================================================================== */
 :root {
   color-scheme: light;
-  --page: #f4f6fb;
+  --page: #ffffff;
   --surface: #ffffff;
   --surface-2: #f3f6fa;
   --surface-3: #e9eef5;
@@ -38,38 +38,6 @@
   --font: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --page: #0b1120;
-    --surface: #121a2b;
-    --surface-2: #172135;
-    --surface-3: #1e2a42;
-    --ink: #e8edf5;
-    --ink-2: #b4c0d3;
-    --muted: #8a99b1;
-    --grid: #223049;
-    --axis: #34445f;
-    --border: #24324c;
-    --brand: #0a1426;
-    --brand-2: #14264a;
-    --accent: #4f8cff;
-    --accent-hover: #6d9fff;
-    --accent-soft: #18284a;
-    --series-1: #3987e5;
-    --pass: #22c55e;
-    --pass-soft: #12301f;
-    --fail: #f05252;
-    --fail-soft: #3a1a1d;
-    --warn-soft: #3a2f12;
-    --good-text: #4ade80;
-    --violet: #9085e9;
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, .4);
-    --shadow: 0 1px 2px rgba(0, 0, 0, .35), 0 6px 20px rgba(0, 0, 0, .25);
-    --shadow-lg: 0 2px 6px rgba(0, 0, 0, .4), 0 18px 40px rgba(0, 0, 0, .35);
-  }
-}
-
 /* ------------------------------------------------------------- base */
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
@@ -106,7 +74,7 @@ main { max-width: 1240px; margin: 0 auto; padding: 28px 16px 64px; }
 .eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin-bottom: 6px; }
 
 /* ------------------------------------------------------------- cards and grids */
-.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow-sm); }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; box-shadow: 0 1px 3px rgba(15, 23, 42, .06), 0 4px 14px rgba(15, 23, 42, .04); }
 .card.raised { box-shadow: var(--shadow); }
 .card-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
 .card-title h2 { margin: 0; }
